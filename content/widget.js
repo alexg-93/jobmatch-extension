@@ -65,7 +65,20 @@
     const pctLabel = pct === null || pct === undefined ? "—" : `${pct}%`;
     const missing = result.missingSkills || [];
     const suggestions = result.suggestions || [];
-    const engineLabel = result.engine === "ai" ? "on-device AI" : result.engine === "keyword" ? "keyword match" : "";
+    let engineLabel = "on-device AI";
+    if (result.engine?.startsWith("ollama:")) {
+      const model = result.engine.replace("ollama:", "");
+      engineLabel = `Ollama (${model})`;
+    } else if (result.engine?.startsWith("local-ai:")) {
+      const model = result.engine.replace("local-ai:", "");
+      engineLabel = `Local AI (${model})`;
+    } else if (result.engine === "ai") {
+      engineLabel = "on-device AI";
+    } else if (result.engine === "keyword") {
+      engineLabel = "keyword match";
+    } else if (result.engine) {
+      engineLabel = result.engine;
+    }
     const jobTitle = result.jobTitle || "";
     const profiles = result.profiles || [];
     const activeProfileId = result.activeProfileId || result.profileId;

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "JobMatch — Resume Matcher (LinkedIn, Drushim, AllJobs, Comeet, Greenhouse)",
-  "version": "0.9.0",
-  "description": "Upload your resume once. See your match score, strengths, and gap analysis on LinkedIn, Drushim, AllJobs, Comeet, and Greenhouse, powered by on-device AI.",
+  "version": "0.10.0",
+  "description": "Upload your resume once. See your match score, strengths, and gap analysis on LinkedIn, Drushim, AllJobs, Comeet, and Greenhouse, powered by on-device AI (Gemini Nano or local Ollama).",
   "permissions": ["storage", "offscreen"],
   "host_permissions": [
     "https://www.linkedin.com/*",
@@ -13,7 +13,9 @@
     "https://alljobs.co.il/*",
     "https://*.comeet.com/*",
     "https://comeet.com/*",
-    "https://boards.greenhouse.io/*"
+    "https://boards.greenhouse.io/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ],
   "background": {
     "service_worker": "background.js"

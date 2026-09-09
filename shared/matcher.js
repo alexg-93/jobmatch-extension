@@ -20,7 +20,8 @@
     "jetpack compose", "xcode", "android studio",
     // Web / Frontend
     "react", "reactjs", "react.js", "next.js", "nextjs", "redux", "redux toolkit", "zustand",
-    "tanstack query", "react query", "vue", "vuejs", "vue.js", "angular", "angularjs", "svelte", "html", "css",
+    "tanstack query", "react query", "vue", "vue 3", "vue 2", "vuejs", "vue.js", "vuex", "pinia", "vue router",
+    "angular", "angularjs", "svelte", "html", "css",
     "tailwind", "sass", "scss", "storybook",
     // Backend & Frameworks
     ".net", ".net core", "asp.net", "asp.net core", "entity framework", "linq",
@@ -49,6 +50,9 @@
     "nextjs": "next.js",
     "vuejs": "vue",
     "vue.js": "vue",
+    "vue 3": "vue",
+    "vue 2": "vue",
+    "vue 2/3": "vue",
     "angularjs": "angular",
     "golang": "go",
     "k8s": "kubernetes",
@@ -63,6 +67,8 @@
     "asp.net": ".net",
     ".net core": ".net",
     "restful api": "rest api",
+    "rest apis": "rest api",
+    "restful apis": "rest api",
     "github actions": "ci/cd",
     "github copilot": "copilot",
     "cursor ai": "cursor"
@@ -113,12 +119,16 @@
     "flutter": "Flutter",
     "next.js": "Next.js",
     "vue": "Vue",
+    "vuex": "Vuex",
+    "pinia": "Pinia",
+    "vue router": "Vue Router",
     "angular": "Angular",
     "svelte": "Svelte",
     "html": "HTML",
     "css": "CSS",
     "tailwind": "Tailwind CSS",
     "sass": "Sass",
+    "scss": "SCSS",
     "node.js": "Node.js",
     "express": "Express",
     "nestjs": "NestJS",
@@ -548,6 +558,19 @@
       return { minYears: min, maxYears: max, raw: heMatch[0].trim(), label };
     }
 
+    // Hebrew words for 1 / 2 years: "שנה ניסיון", "שנת ניסיון", "שנתיים ניסיון", "שנה-שנתיים ניסיון"
+    const heWordMatch = clean.match(/(?:לפחות|מינימום|מעל)?\s*(שנה|שנת|שנתיים)\s*(?:[-–—]|עד|\+)?\s*(שנתיים|\d{1,2})?\s*(?:שנות\s+)?(?:של\s+)?ניסיון/i);
+    if (heWordMatch) {
+      const isTwo = heWordMatch[1] === "שנתיים";
+      const min = isTwo ? 2 : 1;
+      let max = min;
+      if (heWordMatch[2]) {
+        max = heWordMatch[2] === "שנתיים" ? 2 : parseInt(heWordMatch[2], 10);
+      }
+      const label = max && max !== min ? `${min}-${max} years` : `${min}+ years`;
+      return { minYears: min, maxYears: max, raw: heWordMatch[0].trim(), label };
+    }
+
     return null;
   }
 
@@ -767,9 +790,15 @@
     return smartTrimText(resumeText, maxChars);
   }
 
-  // Builds the prompt sent to the on-device model (Gemini Nano via the
-  // Prompt API) for per-job matching.
-  function buildMatchPrompt(resumeText, jobTitle, jobText, detectedJobSkills, userYearsOverride) {
+  function buildMatchPrompt(resumeTextOrOptions, jobTitle, jobText, detectedJobSkills, userYearsOverride) {
+    let resumeText = resumeTextOrOptions;
+    if (typeof resumeTextOrOptions === "object" && resumeTextOrOptions !== null) {
+      resumeText = resumeTextOrOptions.resumeText;
+      jobTitle = resumeTextOrOptions.jobTitle;
+      jobText = resumeTextOrOptions.jobText;
+      detectedJobSkills = resumeTextOrOptions.detectedJobSkills;
+      userYearsOverride = resumeTextOrOptions.yearsOfExperience ?? resumeTextOrOptions.userYearsOverride;
+    }
     const trimmedResume = trimResume(resumeText, 4500);
     const trimmedJob = trimJobPosting(jobText, 2600);
     const detectedSkillsText = (Array.isArray(detectedJobSkills) && detectedJobSkills.length)

@@ -41,6 +41,150 @@ async function askOffscreen(message) {
     await new Promise((r) => setTimeout(r, 200));
     return chrome.runtime.sendMessage({ ...message, target: "offscreen" });
   }
+const DEFAULT_AI_SETTINGS = {
+  aiProvider: "chrome", // "chrome" | "ollama" | "openai_compat"
+  ollamaEndpoint: "http://localhost:11434",
+  ollamaModel: "llama3.2",
+  openaiEndpoint: "http://localhost:1234/v1",
+  openaiModel: "local-model",
+  openaiApiKey: ""
+};
+
+async function getAiSettings() {
+  const data = await chrome.storage.local.get([
+    "aiProvider",
+    "ollamaEndpoint",
+    "ollamaModel",
+    "openaiEndpoint",
+    "openaiModel",
+    "openaiApiKey"
+  ]);
+  return {
+    aiProvider: data.aiProvider || DEFAULT_AI_SETTINGS.aiProvider,
+    ollamaEndpoint: data.ollamaEndpoint || DEFAULT_AI_SETTINGS.ollamaEndpoint,
+    ollamaModel: data.ollamaModel || DEFAULT_AI_SETTINGS.ollamaModel,
+    openaiEndpoint: data.openaiEndpoint || DEFAULT_AI_SETTINGS.openaiEndpoint,
+    openaiModel: data.openaiModel || DEFAULT_AI_SETTINGS.openaiModel,
+    openaiApiKey: data.openaiApiKey || DEFAULT_AI_SETTINGS.openaiApiKey
+  };
+}
+
+async function fetchWithTimeout(resource, options = {}, timeoutMs = 45000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(resource, {
+      ...options,
+      signal: controller.signal
+    });
+    return response;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+async function callOllama({ prompt, endpoint, model }) {
+  const base = (endpoint || "http://localhost:11434").replace(/\/+$/, "");
+  const url = `${base}/api/generate`;
+  const res = await fetchWithTimeout(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: model || "llama3.2",
+      prompt,
+      stream: false,
+      format: "json"
+    })
+  }, 45000);
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`Ollama error (HTTP ${res.status}): ${errText || res.statusText}`);
+  }
+
+  const data = await res.json();
+  if (!data?.response) {
+    throw new Error("Ollama returned empty response.");
+  }
+  return data.response;
+}
+
+async function callOpenAiCompat({ prompt, endpoint, model, apiKey }) {
+  const base = (endpoint || "http://localhost:1234/v1").replace(/\/+$/, "");
+  const url = `${base}/chat/completions`;
+  const headers = { "Content-Type": "application/json" };
+  if (apiKey) {
+    headers["Authorization"] = `Bearer ${apiKey}`;
+  }
+
+  const res = await fetchWithTimeout(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model: model || "local-model",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.1
+    })
+  }, 45000);
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`Local AI error (HTTP ${res.status}): ${errText || res.statusText}`);
+  }
+
+  const data = await res.json();
+  const text = data?.choices?.[0]?.message?.content;
+  if (!text) {
+    throw new Error("Local AI server returned empty content.");
+  }
+  return text;
+}
+
+async function getOllamaModels(endpoint) {
+  const base = (endpoint || "http://localhost:11434").replace(/\/+$/, "");
+  const url = `${base}/api/tags`;
+  const res = await fetchWithTimeout(url, { method: "GET" }, 8000);
+  if (!res.ok) {
+    throw new Error(`Could not fetch models from Ollama (HTTP ${res.status})`);
+  }
+  const data = await res.json();
+  const models = (data?.models || []).map((m) => m.name || m.model).filter(Boolean);
+  return models;
+}
+
+async function testAiConnection({ provider, endpoint, model, apiKey }) {
+  try {
+    if (provider === "ollama") {
+      const ep = endpoint || "http://localhost:11434";
+      const models = await getOllamaModels(ep);
+      if (!models || models.length === 0) {
+        return { ok: true, models: [], message: "Connected to Ollama, but no models found. Run 'ollama pull llama3.2' to download one." };
+      }
+      return { ok: true, models, message: `Connected to Ollama! Found ${models.length} installed model(s).` };
+    } else if (provider === "openai_compat") {
+      const ep = (endpoint || "http://localhost:1234/v1").replace(/\/+$/, "");
+      const url = `${ep}/models`;
+      const headers = {};
+      if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+      const res = await fetchWithTimeout(url, { method: "GET", headers }, 8000);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      const data = await res.json().catch(() => ({}));
+      const models = (data?.data || []).map((m) => m.id).filter(Boolean);
+      return { ok: true, models, message: `Connected to local server! Found ${models.length} model(s).` };
+    } else {
+      // Chrome built-in
+      const resp = await askOffscreen({ type: "AI_AVAILABILITY" });
+      const state = resp?.availability;
+      if (state === "available" || state === "readily") {
+        return { ok: true, message: "Chrome built-in Gemini Nano is available and ready." };
+      }
+      return { ok: false, error: `Chrome built-in AI state: ${state || "unavailable"}` };
+    }
+  } catch (err) {
+    return { ok: false, error: `Connection failed: ${err.message || String(err)}` };
+  }
 }
 
 async function ensureProfilesMigrated() {
@@ -307,71 +451,121 @@ async function analyzeJob({ url, title, description, profileId }) {
     targetProfile.yearsOfExperience
   );
 
-  // Try on-device AI first (free, private, no key)
-  let result = null;
-  try {
-    const aiResponse = await askOffscreen({
-      type: "AI_MATCH_JOB",
-      resumeText: targetProfile.text,
-      jobTitle: title,
-      jobText: description,
-      detectedJobSkills: detMatch.detectedJobSkills || [],
-      yearsOfExperience: targetProfile.yearsOfExperience
-    });
-    if (aiResponse?.ok && aiResponse.result) {
-      // Hybrid merge with strict job-posting grounding validation:
-      // AI missing skills that do not appear in the job posting are dropped as hallucinations.
-      const mergedMissing = self.JobMatch.mergeMissingSkills(
-        aiResponse.result.missingSkills || [],
-        detMatch.missingSkills || [],
-        fullJobText,
-        detMatch.detectedJobSkills || []
-      );
+  const aiSettings = await getAiSettings();
+  let aiRawResult = null;
+  let activeEngineName = "ai";
 
-      // Ground AI suggestions against the actual job posting
-      const groundedSuggestions = self.JobMatch.filterGroundedSuggestions(
-        aiResponse.result.suggestions,
-        fullJobText,
-        mergedMissing.discardedAiSkills || [],
-        detMatch.suggestions
-      );
-
-      // Ground AI strengths against job posting & resume
-      const groundedStrengths = self.JobMatch.filterGroundedItems(
-        aiResponse.result.strengths,
-        fullJobText,
-        mergedMissing.discardedAiSkills || [],
-        detMatch.strengths
-      );
-
-      // Ground AI gaps against job posting
-      const groundedGaps = self.JobMatch.filterGroundedItems(
-        aiResponse.result.gaps,
-        fullJobText,
-        mergedMissing.discardedAiSkills || [],
-        detMatch.gaps
-      );
-
-      // If deterministic experience gap exists and AI didn't explicitly include it, ensure it is present
-      if (detMatch.experienceAnalysis?.status === "deficit" && !groundedGaps.some((g) => g.toLowerCase().includes("experience"))) {
-        groundedGaps.unshift(detMatch.experienceAnalysis.gapMessage);
-      }
-
-      result = {
-        engine: "ai",
-        matchPercent: typeof aiResponse.result.matchPercent === "number" ? aiResponse.result.matchPercent : (detMatch.matchPercent ?? null),
-        missingSkills: mergedMissing,
-        strengths: groundedStrengths,
-        gaps: groundedGaps,
-        suggestions: groundedSuggestions,
-        matchedSkills: detMatch.matchedSkills || [],
-        experienceAnalysis: detMatch.experienceAnalysis || null
-      };
-    } else {
-      console.warn("[JobMatch Background] On-device AI unavailable or returned error:", aiResponse?.error || "Empty result");
+  if (aiSettings.aiProvider === "ollama") {
+    activeEngineName = `ollama:${aiSettings.ollamaModel}`;
+    try {
+      const prompt = self.JobMatch.buildMatchPrompt({
+        resumeText: targetProfile.text,
+        jobTitle: title,
+        jobText: description,
+        detectedJobSkills: detMatch.detectedJobSkills || [],
+        yearsOfExperience: targetProfile.yearsOfExperience
+      });
+      const responseText = await callOllama({
+        prompt,
+        endpoint: aiSettings.ollamaEndpoint,
+        model: aiSettings.ollamaModel
+      });
+      aiRawResult = self.JobMatch.extractJson(responseText);
+    } catch (e) {
+      console.warn("[JobMatch Background] Ollama match error, falling back:", e);
     }
-  } catch (e) {
-    console.warn("[JobMatch Background] On-device AI threw exception, falling back to keyword match:", e);
+  } else if (aiSettings.aiProvider === "openai_compat") {
+    activeEngineName = `local-ai:${aiSettings.openaiModel}`;
+    try {
+      const prompt = self.JobMatch.buildMatchPrompt({
+        resumeText: targetProfile.text,
+        jobTitle: title,
+        jobText: description,
+        detectedJobSkills: detMatch.detectedJobSkills || [],
+        yearsOfExperience: targetProfile.yearsOfExperience
+      });
+      const responseText = await callOpenAiCompat({
+        prompt,
+        endpoint: aiSettings.openaiEndpoint,
+        model: aiSettings.openaiModel,
+        apiKey: aiSettings.openaiApiKey
+      });
+      aiRawResult = self.JobMatch.extractJson(responseText);
+    } catch (e) {
+      console.warn("[JobMatch Background] Local OpenAI-compatible match error, falling back:", e);
+    }
+  } else {
+    // Default Chrome built-in Gemini Nano via offscreen
+    activeEngineName = "ai";
+    try {
+      const aiResponse = await askOffscreen({
+        type: "AI_MATCH_JOB",
+        resumeText: targetProfile.text,
+        jobTitle: title,
+        jobText: description,
+        detectedJobSkills: detMatch.detectedJobSkills || [],
+        yearsOfExperience: targetProfile.yearsOfExperience
+      });
+      if (aiResponse?.ok && aiResponse.result) {
+        aiRawResult = aiResponse.result;
+      } else {
+        console.warn("[JobMatch Background] On-device AI unavailable:", aiResponse?.error || "Empty result");
+      }
+    } catch (e) {
+      console.warn("[JobMatch Background] On-device AI threw exception:", e);
+    }
+  }
+
+  let result = null;
+  if (aiRawResult) {
+    // Hybrid merge with strict job-posting grounding validation:
+    // AI missing skills that do not appear in the job posting are dropped as hallucinations.
+    const mergedMissing = self.JobMatch.mergeMissingSkills(
+      aiRawResult.missingSkills || [],
+      detMatch.missingSkills || [],
+      fullJobText,
+      detMatch.detectedJobSkills || []
+    );
+
+    // Ground AI suggestions against the actual job posting
+    const groundedSuggestions = self.JobMatch.filterGroundedSuggestions(
+      aiRawResult.suggestions,
+      fullJobText,
+      mergedMissing.discardedAiSkills || [],
+      detMatch.suggestions
+    );
+
+    // Ground AI strengths against job posting & resume
+    const groundedStrengths = self.JobMatch.filterGroundedItems(
+      aiRawResult.strengths,
+      fullJobText,
+      mergedMissing.discardedAiSkills || [],
+      detMatch.strengths
+    );
+
+    // Ground AI gaps against job posting
+    const groundedGaps = self.JobMatch.filterGroundedItems(
+      aiRawResult.gaps,
+      fullJobText,
+      mergedMissing.discardedAiSkills || [],
+      detMatch.gaps
+    );
+
+    // If deterministic experience gap exists and AI didn't explicitly include it, ensure it is present
+    if (detMatch.experienceAnalysis?.status === "deficit" && !groundedGaps.some((g) => g.toLowerCase().includes("experience"))) {
+      groundedGaps.unshift(detMatch.experienceAnalysis.gapMessage);
+    }
+
+    result = {
+      engine: activeEngineName,
+      matchPercent: typeof aiRawResult.matchPercent === "number" ? aiRawResult.matchPercent : (detMatch.matchPercent ?? null),
+      missingSkills: mergedMissing,
+      strengths: groundedStrengths,
+      gaps: groundedGaps,
+      suggestions: groundedSuggestions,
+      matchedSkills: detMatch.matchedSkills || [],
+      experienceAnalysis: detMatch.experienceAnalysis || null
+    };
   }
 
   if (!result) {
@@ -465,6 +659,50 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         }
         const skills = self.JobMatch.naiveSkillExtraction(msg.payload.resumeText, msg.payload.customSkills);
         sendResponse({ ok: true, skills, engine: "keyword" });
+        return;
+      }
+      case "GET_AI_SETTINGS": {
+        const settings = await getAiSettings();
+        sendResponse({ ok: true, settings });
+        return;
+      }
+      case "SAVE_AI_SETTINGS": {
+        try {
+          const current = await getAiSettings();
+          const next = { ...current, ...msg.payload };
+          await chrome.storage.local.set(next);
+
+          // Clear cached job results if engine or model changed so jobs re-evaluate
+          if (current.aiProvider !== next.aiProvider || current.ollamaModel !== next.ollamaModel || current.openaiModel !== next.openaiModel) {
+            const all = await chrome.storage.local.get(null);
+            const cacheKeys = Object.keys(all).filter((k) => k.startsWith("cache:v"));
+            if (cacheKeys.length > 0) {
+              await chrome.storage.local.remove(cacheKeys);
+            }
+          }
+
+          sendResponse({ ok: true, settings: next });
+        } catch (err) {
+          sendResponse({ ok: false, error: err?.message || String(err) });
+        }
+        return;
+      }
+      case "GET_OLLAMA_MODELS": {
+        try {
+          const models = await getOllamaModels(msg.payload?.endpoint);
+          sendResponse({ ok: true, models });
+        } catch (err) {
+          sendResponse({ ok: false, error: err?.message || String(err) });
+        }
+        return;
+      }
+      case "TEST_AI_CONNECTION": {
+        try {
+          const res = await testAiConnection(msg.payload || {});
+          sendResponse(res);
+        } catch (err) {
+          sendResponse({ ok: false, error: err?.message || String(err) });
+        }
         return;
       }
       default:

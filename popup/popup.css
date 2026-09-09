@@ -30,6 +30,123 @@ h1 {
 .ai-status--pending { background: #fffbeb; color: #92400e; }
 .ai-status--off { background: #f3f4f6; color: #4b5563; }
 
+.ai-engine-section {
+  margin-bottom: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.ai-engine-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ai-provider-toggle {
+  display: flex;
+  gap: 2px;
+  background: #e5e7eb;
+  padding: 2px;
+  border-radius: 6px;
+}
+
+.provider-btn {
+  border: none;
+  background: transparent;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #4b5563;
+  transition: all 0.15s ease;
+}
+
+.provider-btn.active {
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.provider-details-panel {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #e5e7eb;
+}
+
+.field-row {
+  margin-bottom: 6px;
+}
+
+.field-label-small {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+}
+
+.text-input-sm {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  font-size: 11px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.select-with-btn {
+  display: flex;
+  gap: 4px;
+}
+
+.select-input-sm {
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 11px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #ffffff;
+}
+
+.provider-action-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.btn-outline {
+  background: #ffffff;
+  border: 1px solid #2563eb;
+  color: #2563eb;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-outline:hover {
+  background: #eff6ff;
+}
+
+.conn-status-text {
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 170px;
+}
+
+.conn-status-text.ok { color: #059669; }
+.conn-status-text.err { color: #dc2626; }
+.conn-status-text.loading { color: #d97706; }
+
 .mode-section {
   margin-bottom: 12px;
   background: #f9fafb;

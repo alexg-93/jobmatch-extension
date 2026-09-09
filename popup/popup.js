@@ -145,6 +145,100 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+let currentAiSettings = {
+  aiProvider: "chrome",
+  ollamaEndpoint: "http://localhost:11434",
+  ollamaModel: "llama3.2",
+  openaiEndpoint: "http://localhost:1234/v1",
+  openaiModel: "local-model",
+  openaiApiKey: ""
+};
+
+async function updateAiStatusDisplay() {
+  const aiEl = $("aiStatus");
+  if (!aiEl) return;
+  const provider = currentAiSettings.aiProvider;
+
+  if (provider === "ollama") {
+    aiEl.textContent = `AI Engine: Ollama (Local) — model "${currentAiSettings.ollamaModel}". 100% private offline.`;
+    aiEl.className = "ai-status ai-status--ok";
+  } else if (provider === "openai_compat") {
+    aiEl.textContent = `AI Engine: Local server — model "${currentAiSettings.openaiModel}". 100% private offline.`;
+    aiEl.className = "ai-status ai-status--ok";
+  } else {
+    // Chrome built-in Gemini Nano
+    const availabilityResp = await sendMessage({ type: "GET_AI_AVAILABILITY" });
+    const state = availabilityResp?.availability;
+    if (state === "available" || state === "readily") {
+      aiEl.textContent = "AI Engine: Chrome Built-in (Gemini Nano) — ready & offline.";
+      aiEl.className = "ai-status ai-status--ok";
+    } else if (state === "downloadable" || state === "downloading" || state === "after-download") {
+      aiEl.textContent = "AI Engine: Chrome Built-in — model downloading. Using offline keyword match.";
+      aiEl.className = "ai-status ai-status--pending";
+    } else {
+      aiEl.textContent = "AI Engine: Chrome Built-in not active on this browser — select Ollama or use keyword match.";
+      aiEl.className = "ai-status ai-status--off";
+    }
+  }
+}
+
+function updateAiProviderUI(provider) {
+  const buttons = document.querySelectorAll("#aiProviderToggle .provider-btn");
+  buttons.forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.provider === provider);
+  });
+
+  const ollamaPanel = $("ollamaSettings");
+  const openaiPanel = $("openaiSettings");
+  if (ollamaPanel) ollamaPanel.style.display = provider === "ollama" ? "block" : "none";
+  if (openaiPanel) openaiPanel.style.display = provider === "openai_compat" ? "block" : "none";
+
+  updateAiStatusDisplay();
+}
+
+async function populateOllamaModels(endpoint) {
+  const select = $("ollamaModelSelect");
+  if (!select) return;
+  const statusEl = $("ollamaConnStatus");
+  if (statusEl) {
+    statusEl.textContent = "Fetching models…";
+    statusEl.className = "conn-status-text loading";
+  }
+
+  const res = await sendMessage({ type: "GET_OLLAMA_MODELS", payload: { endpoint } });
+  select.innerHTML = "";
+  if (res?.ok && Array.isArray(res.models) && res.models.length > 0) {
+    res.models.forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = m;
+      opt.textContent = m;
+      select.appendChild(opt);
+    });
+
+    if (res.models.includes(currentAiSettings.ollamaModel)) {
+      select.value = currentAiSettings.ollamaModel;
+    } else {
+      select.value = res.models[0];
+      currentAiSettings.ollamaModel = res.models[0];
+      await sendMessage({ type: "SAVE_AI_SETTINGS", payload: { ollamaModel: res.models[0] } });
+    }
+
+    if (statusEl) {
+      statusEl.textContent = `Connected (${res.models.length} models)`;
+      statusEl.className = "conn-status-text ok";
+    }
+  } else {
+    const opt = document.createElement("option");
+    opt.value = currentAiSettings.ollamaModel || "llama3.2";
+    opt.textContent = currentAiSettings.ollamaModel || "llama3.2";
+    select.appendChild(opt);
+    if (statusEl) {
+      statusEl.textContent = res?.error ? "Offline / Not connected" : "No models found";
+      statusEl.className = "conn-status-text err";
+    }
+  }
+}
+
 async function loadExisting() {
   const profilesResp = await sendMessage({ type: "GET_PROFILES" });
   if (profilesResp?.ok && Array.isArray(profilesResp.profiles)) {
@@ -156,18 +250,19 @@ async function loadExisting() {
     populateSelectedProfile();
   }
 
-  const availabilityResp = await sendMessage({ type: "GET_AI_AVAILABILITY" });
-  const state = availabilityResp?.availability;
-  const aiEl = $("aiStatus");
-  if (state === "available" || state === "readily") {
-    aiEl.textContent = "On-device AI: ready — matching runs locally, free, no data leaves this device.";
-    aiEl.className = "ai-status ai-status--ok";
-  } else if (state === "downloadable" || state === "downloading" || state === "after-download") {
-    aiEl.textContent = "On-device AI: model downloading — using offline keyword matching until it's ready.";
-    aiEl.className = "ai-status ai-status--pending";
-  } else {
-    aiEl.textContent = "On-device AI: not available on this Chrome build — using offline keyword matching.";
-    aiEl.className = "ai-status ai-status--off";
+  const settingsResp = await sendMessage({ type: "GET_AI_SETTINGS" });
+  if (settingsResp?.ok && settingsResp.settings) {
+    currentAiSettings = settingsResp.settings;
+  }
+
+  if ($("ollamaEndpoint")) $("ollamaEndpoint").value = currentAiSettings.ollamaEndpoint;
+  if ($("openaiEndpoint")) $("openaiEndpoint").value = currentAiSettings.openaiEndpoint;
+  if ($("openaiModelInput")) $("openaiModelInput").value = currentAiSettings.openaiModel;
+  if ($("openaiApiKeyInput")) $("openaiApiKeyInput").value = currentAiSettings.openaiApiKey;
+
+  updateAiProviderUI(currentAiSettings.aiProvider);
+  if (currentAiSettings.aiProvider === "ollama") {
+    populateOllamaModels(currentAiSettings.ollamaEndpoint);
   }
 
   const { scanMode = "auto" } = await chrome.storage.local.get("scanMode");
@@ -193,6 +288,106 @@ document.querySelectorAll("#scanModeToggle .mode-btn").forEach((btn) => {
     updateScanModeUI(mode);
     await chrome.storage.local.set({ scanMode: mode });
   });
+});
+
+document.querySelectorAll("#aiProviderToggle .provider-btn").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    const provider = btn.dataset.provider;
+    if (provider === currentAiSettings.aiProvider) return;
+    currentAiSettings.aiProvider = provider;
+    updateAiProviderUI(provider);
+    await sendMessage({ type: "SAVE_AI_SETTINGS", payload: { aiProvider: provider } });
+    if (provider === "ollama") {
+      populateOllamaModels(currentAiSettings.ollamaEndpoint);
+    }
+  });
+});
+
+$("refreshOllamaModelsBtn")?.addEventListener("click", async () => {
+  const ep = $("ollamaEndpoint").value.trim() || currentAiSettings.ollamaEndpoint;
+  populateOllamaModels(ep);
+});
+
+$("testOllamaBtn")?.addEventListener("click", async () => {
+  const statusEl = $("ollamaConnStatus");
+  if (statusEl) {
+    statusEl.textContent = "Testing…";
+    statusEl.className = "conn-status-text loading";
+  }
+  const ep = $("ollamaEndpoint").value.trim() || currentAiSettings.ollamaEndpoint;
+  const res = await sendMessage({
+    type: "TEST_AI_CONNECTION",
+    payload: { provider: "ollama", endpoint: ep }
+  });
+  if (statusEl) {
+    if (res?.ok) {
+      statusEl.textContent = res.message || "Connected!";
+      statusEl.className = "conn-status-text ok";
+      if (Array.isArray(res.models) && res.models.length > 0) {
+        populateOllamaModels(ep);
+      }
+    } else {
+      statusEl.textContent = res?.error || "Offline";
+      statusEl.className = "conn-status-text err";
+    }
+  }
+});
+
+$("testOpenAiBtn")?.addEventListener("click", async () => {
+  const statusEl = $("openaiConnStatus");
+  if (statusEl) {
+    statusEl.textContent = "Testing…";
+    statusEl.className = "conn-status-text loading";
+  }
+  const ep = $("openaiEndpoint").value.trim() || currentAiSettings.openaiEndpoint;
+  const model = $("openaiModelInput").value.trim() || currentAiSettings.openaiModel;
+  const apiKey = $("openaiApiKeyInput").value.trim() || currentAiSettings.openaiApiKey;
+  const res = await sendMessage({
+    type: "TEST_AI_CONNECTION",
+    payload: { provider: "openai_compat", endpoint: ep, model, apiKey }
+  });
+  if (statusEl) {
+    if (res?.ok) {
+      statusEl.textContent = res.message || "Connected!";
+      statusEl.className = "conn-status-text ok";
+    } else {
+      statusEl.textContent = res?.error || "Offline";
+      statusEl.className = "conn-status-text err";
+    }
+  }
+});
+
+$("ollamaModelSelect")?.addEventListener("change", async () => {
+  const model = $("ollamaModelSelect").value;
+  currentAiSettings.ollamaModel = model;
+  await sendMessage({ type: "SAVE_AI_SETTINGS", payload: { ollamaModel: model } });
+  updateAiStatusDisplay();
+});
+
+$("ollamaEndpoint")?.addEventListener("change", async () => {
+  const ep = $("ollamaEndpoint").value.trim();
+  currentAiSettings.ollamaEndpoint = ep;
+  await sendMessage({ type: "SAVE_AI_SETTINGS", payload: { ollamaEndpoint: ep } });
+  populateOllamaModels(ep);
+});
+
+$("openaiEndpoint")?.addEventListener("change", async () => {
+  const ep = $("openaiEndpoint").value.trim();
+  currentAiSettings.openaiEndpoint = ep;
+  await sendMessage({ type: "SAVE_AI_SETTINGS", payload: { openaiEndpoint: ep } });
+});
+
+$("openaiModelInput")?.addEventListener("change", async () => {
+  const model = $("openaiModelInput").value.trim();
+  currentAiSettings.openaiModel = model;
+  await sendMessage({ type: "SAVE_AI_SETTINGS", payload: { openaiModel: model } });
+  updateAiStatusDisplay();
+});
+
+$("openaiApiKeyInput")?.addEventListener("change", async () => {
+  const key = $("openaiApiKeyInput").value.trim();
+  currentAiSettings.openaiApiKey = key;
+  await sendMessage({ type: "SAVE_AI_SETTINGS", payload: { openaiApiKey: key } });
 });
 
 $("profileNameInput").addEventListener("change", async () => {

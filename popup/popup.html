@@ -9,7 +9,57 @@
   <h1>JobMatch</h1>
   <p class="subtitle">Upload your resume once. Scores jobs on LinkedIn, Drushim, AllJobs, Comeet & Greenhouse with on-device AI.</p>
 
-  <div id="aiStatus" class="ai-status">Checking on-device AI…</div>
+  <div class="ai-engine-section">
+    <div class="ai-engine-header">
+      <span class="field-label" style="margin:0;">AI Engine</span>
+      <div class="ai-provider-toggle" id="aiProviderToggle">
+        <button type="button" class="provider-btn active" data-provider="chrome" title="Chrome Built-in Gemini Nano">Nano</button>
+        <button type="button" class="provider-btn" data-provider="ollama" title="Ollama Local REST API">Ollama</button>
+        <button type="button" class="provider-btn" data-provider="openai_compat" title="LM Studio / LocalAI">Custom</button>
+      </div>
+    </div>
+
+    <!-- Ollama Settings Panel -->
+    <div id="ollamaSettings" class="provider-details-panel" style="display:none;">
+      <div class="field-row">
+        <label class="field-label-small" for="ollamaEndpoint">Endpoint</label>
+        <input type="text" id="ollamaEndpoint" class="text-input-sm" value="http://localhost:11434" placeholder="http://localhost:11434" />
+      </div>
+      <div class="field-row">
+        <label class="field-label-small" for="ollamaModelSelect">Model</label>
+        <div class="select-with-btn">
+          <select id="ollamaModelSelect" class="select-input-sm"></select>
+          <button type="button" id="refreshOllamaModelsBtn" class="btn btn-tiny" title="Fetch installed models from Ollama">🔄</button>
+        </div>
+      </div>
+      <div class="provider-action-row">
+        <button type="button" id="testOllamaBtn" class="btn btn-tiny btn-outline">Test Connection</button>
+        <span id="ollamaConnStatus" class="conn-status-text"></span>
+      </div>
+    </div>
+
+    <!-- OpenAI-Compatible / LM Studio Panel -->
+    <div id="openaiSettings" class="provider-details-panel" style="display:none;">
+      <div class="field-row">
+        <label class="field-label-small" for="openaiEndpoint">Endpoint</label>
+        <input type="text" id="openaiEndpoint" class="text-input-sm" value="http://localhost:1234/v1" placeholder="http://localhost:1234/v1" />
+      </div>
+      <div class="field-row">
+        <label class="field-label-small" for="openaiModelInput">Model Name</label>
+        <input type="text" id="openaiModelInput" class="text-input-sm" value="local-model" placeholder="e.g. qwen2.5-7b, llama-3.2" />
+      </div>
+      <div class="field-row">
+        <label class="field-label-small" for="openaiApiKeyInput">API Key (optional)</label>
+        <input type="password" id="openaiApiKeyInput" class="text-input-sm" placeholder="Optional for local servers" />
+      </div>
+      <div class="provider-action-row">
+        <button type="button" id="testOpenAiBtn" class="btn btn-tiny btn-outline">Test Connection</button>
+        <span id="openaiConnStatus" class="conn-status-text"></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="aiStatus" class="ai-status">Checking AI engine…</div>
 
   <div class="mode-section">
     <div class="mode-header">

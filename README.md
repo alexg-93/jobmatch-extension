@@ -4,7 +4,11 @@ Upload your resume once. See your match %, strengths, gaps, and missing skills o
 
 ## Features
 
-- **🔒 100% Private On-Device AI**: Powered by Chrome's built-in Gemini Nano model (Prompt API / `LanguageModel`). Runs completely locally on your device — zero API keys, no network calls, and your resume never leaves your computer.
+- **🔒 100% Private Local AI (Gemini Nano, Ollama & LM Studio)**:
+  - **Chrome Built-in AI**: Powered by Gemini Nano (Prompt API). Zero-setup, free, and runs entirely offline on-device.
+  - **Ollama (Local REST API)**: Direct connection to local LLMs (`http://localhost:11434`) such as `llama3.2`, `qwen2.5`, or `gemma2` with automatic model discovery.
+  - **Custom / OpenAI-Compatible**: Connect to LM Studio (`http://localhost:1234/v1`), LocalAI, or vLLM with custom endpoints.
+  - Zero data leaves your computer. 100% offline privacy.
 - **⚡ Hybrid Matching Engine**: Merges on-device generative AI with deterministic ground-truth keyword extraction. Seeding detected job requirements into the prompt ensures critical technical gaps (like `SQL`, `PostgreSQL`, `MongoDB`, `.NET`, `RabbitMQ`) are never omitted.
 - **🌐 Broad Platform Support (LinkedIn, Drushim, AllJobs, Comeet, Greenhouse)**:
   - **LinkedIn**: Analyzes dedicated job pages (`https://www.linkedin.com/jobs/view/*`), while automatically ignoring multi-job search panels.
