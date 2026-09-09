@@ -147,6 +147,22 @@ h1 {
 .conn-status-text.err { color: #dc2626; }
 .conn-status-text.loading { color: #d97706; }
 
+.provider-hint-text {
+  font-size: 10px;
+  color: #6b7280;
+  margin: 4px 0 6px 0;
+  line-height: 1.3;
+}
+
+.provider-hint-text a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.provider-hint-text a:hover {
+  text-decoration: underline;
+}
+
 .mode-section {
   margin-bottom: 12px;
   background: #f9fafb;

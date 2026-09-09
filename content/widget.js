@@ -66,7 +66,10 @@
     const missing = result.missingSkills || [];
     const suggestions = result.suggestions || [];
     let engineLabel = "on-device AI";
-    if (result.engine?.startsWith("ollama:")) {
+    if (result.engine?.startsWith("gemini:")) {
+      const model = result.engine.replace("gemini:", "");
+      engineLabel = `Gemini (${model})`;
+    } else if (result.engine?.startsWith("ollama:")) {
       const model = result.engine.replace("ollama:", "");
       engineLabel = `Ollama (${model})`;
     } else if (result.engine?.startsWith("local-ai:")) {

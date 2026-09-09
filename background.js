@@ -41,8 +41,12 @@ async function askOffscreen(message) {
     await new Promise((r) => setTimeout(r, 200));
     return chrome.runtime.sendMessage({ ...message, target: "offscreen" });
   }
+}
+
 const DEFAULT_AI_SETTINGS = {
-  aiProvider: "chrome", // "chrome" | "ollama" | "openai_compat"
+  aiProvider: "chrome", // "chrome" | "gemini" | "ollama" | "openai_compat"
+  geminiApiKey: "",
+  geminiModel: "gemini-3.7-flash",
   ollamaEndpoint: "http://localhost:11434",
   ollamaModel: "llama3.2",
   openaiEndpoint: "http://localhost:1234/v1",
@@ -53,6 +57,8 @@ const DEFAULT_AI_SETTINGS = {
 async function getAiSettings() {
   const data = await chrome.storage.local.get([
     "aiProvider",
+    "geminiApiKey",
+    "geminiModel",
     "ollamaEndpoint",
     "ollamaModel",
     "openaiEndpoint",
@@ -61,6 +67,8 @@ async function getAiSettings() {
   ]);
   return {
     aiProvider: data.aiProvider || DEFAULT_AI_SETTINGS.aiProvider,
+    geminiApiKey: data.geminiApiKey || DEFAULT_AI_SETTINGS.geminiApiKey,
+    geminiModel: data.geminiModel || DEFAULT_AI_SETTINGS.geminiModel,
     ollamaEndpoint: data.ollamaEndpoint || DEFAULT_AI_SETTINGS.ollamaEndpoint,
     ollamaModel: data.ollamaModel || DEFAULT_AI_SETTINGS.ollamaModel,
     openaiEndpoint: data.openaiEndpoint || DEFAULT_AI_SETTINGS.openaiEndpoint,
@@ -81,6 +89,46 @@ async function fetchWithTimeout(resource, options = {}, timeoutMs = 45000) {
   } finally {
     clearTimeout(id);
   }
+}
+
+async function callGeminiCloud({ prompt, apiKey, model }) {
+  if (!apiKey || !apiKey.trim()) {
+    throw new Error("No Gemini API key provided. Please enter your API key in the JobMatch popup.");
+  }
+  const targetModel = model || "gemini-3.7-flash";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent`;
+
+  const res = await fetchWithTimeout(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey.trim()
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [{ text: prompt }]
+        }
+      ],
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.1
+      }
+    })
+  }, 45000);
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => null);
+    const errMsg = errData?.error?.message || (await res.text().catch(() => "")) || res.statusText;
+    throw new Error(`Gemini API error (HTTP ${res.status}): ${errMsg}`);
+  }
+
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error("Gemini returned empty response content.");
+  }
+  return text;
 }
 
 async function callOllama({ prompt, endpoint, model }) {
@@ -154,7 +202,31 @@ async function getOllamaModels(endpoint) {
 
 async function testAiConnection({ provider, endpoint, model, apiKey }) {
   try {
-    if (provider === "ollama") {
+    if (provider === "gemini") {
+      if (!apiKey || !apiKey.trim()) {
+        return { ok: false, error: "Please enter a Gemini API key." };
+      }
+      const targetModel = model || "gemini-3.7-flash";
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent`;
+      const res = await fetchWithTimeout(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey.trim()
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: "Ping" }] }],
+          generationConfig: { maxOutputTokens: 5 }
+        })
+      }, 12000);
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        const errMsg = errData?.error?.message || (await res.text().catch(() => "")) || res.statusText;
+        return { ok: false, error: `Gemini API error (HTTP ${res.status}): ${errMsg}` };
+      }
+      return { ok: true, message: `Connected to Gemini Cloud (${targetModel}) successfully!` };
+    } else if (provider === "ollama") {
       const ep = endpoint || "http://localhost:11434";
       const models = await getOllamaModels(ep);
       if (!models || models.length === 0) {
@@ -455,7 +527,26 @@ async function analyzeJob({ url, title, description, profileId }) {
   let aiRawResult = null;
   let activeEngineName = "ai";
 
-  if (aiSettings.aiProvider === "ollama") {
+  if (aiSettings.aiProvider === "gemini") {
+    activeEngineName = `gemini:${aiSettings.geminiModel || "gemini-3.7-flash"}`;
+    try {
+      const prompt = self.JobMatch.buildMatchPrompt({
+        resumeText: targetProfile.text,
+        jobTitle: title,
+        jobText: description,
+        detectedJobSkills: detMatch.detectedJobSkills || [],
+        yearsOfExperience: targetProfile.yearsOfExperience
+      });
+      const responseText = await callGeminiCloud({
+        prompt,
+        apiKey: aiSettings.geminiApiKey,
+        model: aiSettings.geminiModel
+      });
+      aiRawResult = self.JobMatch.extractJson(responseText);
+    } catch (e) {
+      console.warn("[JobMatch Background] Gemini Cloud match error, falling back:", e);
+    }
+  } else if (aiSettings.aiProvider === "ollama") {
     activeEngineName = `ollama:${aiSettings.ollamaModel}`;
     try {
       const prompt = self.JobMatch.buildMatchPrompt({
@@ -673,7 +764,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           await chrome.storage.local.set(next);
 
           // Clear cached job results if engine or model changed so jobs re-evaluate
-          if (current.aiProvider !== next.aiProvider || current.ollamaModel !== next.ollamaModel || current.openaiModel !== next.openaiModel) {
+          if (
+            current.aiProvider !== next.aiProvider ||
+            current.geminiModel !== next.geminiModel ||
+            current.geminiApiKey !== next.geminiApiKey ||
+            current.ollamaModel !== next.ollamaModel ||
+            current.openaiModel !== next.openaiModel
+          ) {
             const all = await chrome.storage.local.get(null);
             const cacheKeys = Object.keys(all).filter((k) => k.startsWith("cache:v"));
             if (cacheKeys.length > 0) {

@@ -147,6 +147,8 @@ function escapeHtml(str) {
 
 let currentAiSettings = {
   aiProvider: "chrome",
+  geminiApiKey: "",
+  geminiModel: "gemini-3.7-flash",
   ollamaEndpoint: "http://localhost:11434",
   ollamaModel: "llama3.2",
   openaiEndpoint: "http://localhost:1234/v1",
@@ -159,7 +161,16 @@ async function updateAiStatusDisplay() {
   if (!aiEl) return;
   const provider = currentAiSettings.aiProvider;
 
-  if (provider === "ollama") {
+  if (provider === "gemini") {
+    const hasKey = Boolean(currentAiSettings.geminiApiKey?.trim());
+    if (hasKey) {
+      aiEl.textContent = `AI Engine: Google Gemini Cloud (${currentAiSettings.geminiModel || "gemini-3.7-flash"}) — ready.`;
+      aiEl.className = "ai-status ai-status--ok";
+    } else {
+      aiEl.textContent = `AI Engine: Google Gemini Cloud — please enter an API key below.`;
+      aiEl.className = "ai-status ai-status--pending";
+    }
+  } else if (provider === "ollama") {
     aiEl.textContent = `AI Engine: Ollama (Local) — model "${currentAiSettings.ollamaModel}". 100% private offline.`;
     aiEl.className = "ai-status ai-status--ok";
   } else if (provider === "openai_compat") {
@@ -176,7 +187,7 @@ async function updateAiStatusDisplay() {
       aiEl.textContent = "AI Engine: Chrome Built-in — model downloading. Using offline keyword match.";
       aiEl.className = "ai-status ai-status--pending";
     } else {
-      aiEl.textContent = "AI Engine: Chrome Built-in not active on this browser — select Ollama or use keyword match.";
+      aiEl.textContent = "AI Engine: Chrome Built-in not active on this browser — select Gemini, Ollama or use keyword match.";
       aiEl.className = "ai-status ai-status--off";
     }
   }
@@ -188,8 +199,10 @@ function updateAiProviderUI(provider) {
     btn.classList.toggle("active", btn.dataset.provider === provider);
   });
 
+  const geminiPanel = $("geminiSettings");
   const ollamaPanel = $("ollamaSettings");
   const openaiPanel = $("openaiSettings");
+  if (geminiPanel) geminiPanel.style.display = provider === "gemini" ? "block" : "none";
   if (ollamaPanel) ollamaPanel.style.display = provider === "ollama" ? "block" : "none";
   if (openaiPanel) openaiPanel.style.display = provider === "openai_compat" ? "block" : "none";
 
@@ -255,6 +268,8 @@ async function loadExisting() {
     currentAiSettings = settingsResp.settings;
   }
 
+  if ($("geminiApiKeyInput")) $("geminiApiKeyInput").value = currentAiSettings.geminiApiKey || "";
+  if ($("geminiModelSelect")) $("geminiModelSelect").value = currentAiSettings.geminiModel || "gemini-3.7-flash";
   if ($("ollamaEndpoint")) $("ollamaEndpoint").value = currentAiSettings.ollamaEndpoint;
   if ($("openaiEndpoint")) $("openaiEndpoint").value = currentAiSettings.openaiEndpoint;
   if ($("openaiModelInput")) $("openaiModelInput").value = currentAiSettings.openaiModel;
@@ -355,6 +370,43 @@ $("testOpenAiBtn")?.addEventListener("click", async () => {
       statusEl.className = "conn-status-text err";
     }
   }
+});
+
+$("testGeminiBtn")?.addEventListener("click", async () => {
+  const statusEl = $("geminiConnStatus");
+  if (statusEl) {
+    statusEl.textContent = "Testing…";
+    statusEl.className = "conn-status-text loading";
+  }
+  const apiKey = $("geminiApiKeyInput")?.value.trim() || currentAiSettings.geminiApiKey;
+  const model = $("geminiModelSelect")?.value || currentAiSettings.geminiModel || "gemini-3.7-flash";
+  const res = await sendMessage({
+    type: "TEST_AI_CONNECTION",
+    payload: { provider: "gemini", apiKey, model }
+  });
+  if (statusEl) {
+    if (res?.ok) {
+      statusEl.textContent = res.message || "Connected!";
+      statusEl.className = "conn-status-text ok";
+    } else {
+      statusEl.textContent = res?.error || "Offline";
+      statusEl.className = "conn-status-text err";
+    }
+  }
+});
+
+$("geminiApiKeyInput")?.addEventListener("change", async () => {
+  const key = $("geminiApiKeyInput").value.trim();
+  currentAiSettings.geminiApiKey = key;
+  await sendMessage({ type: "SAVE_AI_SETTINGS", payload: { geminiApiKey: key } });
+  updateAiStatusDisplay();
+});
+
+$("geminiModelSelect")?.addEventListener("change", async () => {
+  const model = $("geminiModelSelect").value;
+  currentAiSettings.geminiModel = model;
+  await sendMessage({ type: "SAVE_AI_SETTINGS", payload: { geminiModel: model } });
+  updateAiStatusDisplay();
 });
 
 $("ollamaModelSelect")?.addEventListener("change", async () => {
