@@ -101,7 +101,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
 
       if (msg.type === "AI_MATCH_JOB") {
-        const prompt = self.JobMatch.buildMatchPrompt(msg.resumeText, msg.jobTitle, msg.jobText, msg.detectedJobSkills);
+        const prompt = self.JobMatch.buildMatchPrompt(msg.resumeText, msg.jobTitle, msg.jobText, msg.detectedJobSkills, msg.yearsOfExperience);
         const raw = await runPrompt(prompt);
         const parsed = self.JobMatch.extractJson(raw);
         if (!parsed) throw new Error("Model response wasn't parseable JSON");

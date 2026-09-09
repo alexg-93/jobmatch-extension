@@ -120,6 +120,9 @@ async function saveProfile(profileData) {
     text: profileData.text || "",
     skills: profileData.skills || [],
     customSkills: profileData.customSkills || [],
+    yearsOfExperience: (typeof profileData.yearsOfExperience === "number" && !isNaN(profileData.yearsOfExperience))
+      ? profileData.yearsOfExperience
+      : (profileData.yearsOfExperience ? parseFloat(profileData.yearsOfExperience) || null : null),
     savedAt: Date.now()
   };
 
@@ -297,7 +300,12 @@ async function analyzeJob({ url, title, description, profileId }) {
 
   // Always compute deterministic keyword match as ground-truth baseline
   const fullJobText = `${title}\n${description}`;
-  const detMatch = self.JobMatch.keywordMatch(targetProfile.text, fullJobText, targetProfile.customSkills);
+  const detMatch = self.JobMatch.keywordMatch(
+    targetProfile.text,
+    fullJobText,
+    targetProfile.customSkills,
+    targetProfile.yearsOfExperience
+  );
 
   // Try on-device AI first (free, private, no key)
   let result = null;
@@ -307,7 +315,8 @@ async function analyzeJob({ url, title, description, profileId }) {
       resumeText: targetProfile.text,
       jobTitle: title,
       jobText: description,
-      detectedJobSkills: detMatch.detectedJobSkills || []
+      detectedJobSkills: detMatch.detectedJobSkills || [],
+      yearsOfExperience: targetProfile.yearsOfExperience
     });
     if (aiResponse?.ok && aiResponse.result) {
       // Hybrid merge with strict job-posting grounding validation:
@@ -327,12 +336,36 @@ async function analyzeJob({ url, title, description, profileId }) {
         detMatch.suggestions
       );
 
-        result = {
+      // Ground AI strengths against job posting & resume
+      const groundedStrengths = self.JobMatch.filterGroundedItems(
+        aiResponse.result.strengths,
+        fullJobText,
+        mergedMissing.discardedAiSkills || [],
+        detMatch.strengths
+      );
+
+      // Ground AI gaps against job posting
+      const groundedGaps = self.JobMatch.filterGroundedItems(
+        aiResponse.result.gaps,
+        fullJobText,
+        mergedMissing.discardedAiSkills || [],
+        detMatch.gaps
+      );
+
+      // If deterministic experience gap exists and AI didn't explicitly include it, ensure it is present
+      if (detMatch.experienceAnalysis?.status === "deficit" && !groundedGaps.some((g) => g.toLowerCase().includes("experience"))) {
+        groundedGaps.unshift(detMatch.experienceAnalysis.gapMessage);
+      }
+
+      result = {
         engine: "ai",
         matchPercent: typeof aiResponse.result.matchPercent === "number" ? aiResponse.result.matchPercent : (detMatch.matchPercent ?? null),
         missingSkills: mergedMissing,
+        strengths: groundedStrengths,
+        gaps: groundedGaps,
         suggestions: groundedSuggestions,
-        matchedSkills: detMatch.matchedSkills || []
+        matchedSkills: detMatch.matchedSkills || [],
+        experienceAnalysis: detMatch.experienceAnalysis || null
       };
     } else {
       console.warn("[JobMatch Background] On-device AI unavailable or returned error:", aiResponse?.error || "Empty result");

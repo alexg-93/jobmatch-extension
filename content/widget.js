@@ -71,6 +71,9 @@
     const activeProfileId = result.activeProfileId || result.profileId;
     const hasMultipleProfiles = profiles.length > 1;
 
+    const strengths = result.strengths || [];
+    const gaps = result.gaps || [];
+
     root.innerHTML = `
       <div class="jm-panel">
         <div class="jm-header">
@@ -101,6 +104,30 @@
           <div class="jm-score-label">match${engineLabel ? ` · ${engineLabel}` : ""}</div>
         </div>
         ${result.note ? `<div class="jm-note">${escapeHtml(result.note)}</div>` : ""}
+        ${strengths.length ? `
+          <div class="jm-section jm-section--strengths">
+            <div class="jm-section-title jm-title--strengths">Key Strengths</div>
+            <ul class="jm-list jm-strengths">
+              ${strengths.map((s) => `
+                <li class="jm-item jm-strength-item">
+                  <span class="jm-strength-bullet">✓</span>
+                  <span class="jm-item-text" dir="auto">${escapeHtml(cleanSuggestionText(s))}</span>
+                </li>
+              `).join("")}
+            </ul>
+          </div>` : ""}
+        ${gaps.length ? `
+          <div class="jm-section jm-section--gaps">
+            <div class="jm-section-title jm-title--gaps">Gaps & Weaknesses</div>
+            <ul class="jm-list jm-gaps">
+              ${gaps.map((g) => `
+                <li class="jm-item jm-gap-item">
+                  <span class="jm-gap-bullet">!</span>
+                  <span class="jm-item-text" dir="auto">${escapeHtml(cleanSuggestionText(g))}</span>
+                </li>
+              `).join("")}
+            </ul>
+          </div>` : ""}
         ${missing.length ? `
           <div class="jm-section">
             <div class="jm-section-title">Missing / not detected</div>
@@ -110,7 +137,7 @@
           </div>` : ""}
         ${suggestions.length ? `
           <div class="jm-section">
-            <div class="jm-section-title">Suggestions</div>
+            <div class="jm-section-title">How to Bridge the Gaps</div>
             <ul class="jm-suggestions">
               ${suggestions.map((s) => {
                 const cleaned = cleanSuggestionText(s);

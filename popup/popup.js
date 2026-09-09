@@ -95,6 +95,7 @@ function populateSelectedProfile() {
 
   $("resumeText").value = curr.text || "";
   $("customSkills").value = (curr.customSkills || []).join(", ");
+  $("profileYearsInput").value = (curr.yearsOfExperience !== null && curr.yearsOfExperience !== undefined) ? curr.yearsOfExperience : "";
   if (curr.text) {
     $("resumeInfo").textContent =
       `Profile "${curr.name}": ${curr.text.length} chars, ${curr.skills?.length || 0} skills` +
@@ -203,7 +204,14 @@ $("profileNameInput").addEventListener("change", async () => {
   curr.name = newName;
   await sendMessage({
     type: "SAVE_PROFILE",
-    payload: { id: curr.id, name: newName, text: curr.text, skills: curr.skills, customSkills: curr.customSkills }
+    payload: {
+      id: curr.id,
+      name: newName,
+      text: curr.text,
+      skills: curr.skills,
+      customSkills: curr.customSkills,
+      yearsOfExperience: curr.yearsOfExperience
+    }
   });
   renderProfilesUI();
   setStatus(`Profile renamed to "${newName}".`);
@@ -295,6 +303,8 @@ $("saveBtn").addEventListener("click", async () => {
 
   try {
     const customSkills = $("customSkills").value.split(",").map((s) => s.trim()).filter(Boolean);
+    const yearsVal = $("profileYearsInput").value.trim();
+    const yearsOfExperience = yearsVal ? parseFloat(yearsVal) : null;
     setStatus("Extracting skills for profile…");
     const skillResp = await sendMessage({ type: "EXTRACT_SKILLS", payload: { resumeText: text, customSkills } });
     const skills = skillResp?.skills || [];
@@ -306,7 +316,8 @@ $("saveBtn").addEventListener("click", async () => {
         name,
         text,
         skills,
-        customSkills
+        customSkills,
+        yearsOfExperience
       }
     });
 
@@ -335,11 +346,12 @@ $("clearBtn").addEventListener("click", async () => {
 
   await sendMessage({
     type: "SAVE_PROFILE",
-    payload: { id: curr.id, name: curr.name, text: "", skills: [], customSkills: [] }
+    payload: { id: curr.id, name: curr.name, text: "", skills: [], customSkills: [], yearsOfExperience: null }
   });
   $("resumeFile").value = "";
   $("resumeText").value = "";
   $("customSkills").value = "";
+  $("profileYearsInput").value = "";
   setStatus(`Cleared resume text for profile "${curr.name}".`);
   loadExisting();
 });

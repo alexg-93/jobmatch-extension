@@ -477,6 +477,161 @@
     return unique.slice(0, 5);
   }
 
+  function filterGroundedItems(aiItems, fullJobText, discardedSkills, fallbackItems) {
+    if (!Array.isArray(aiItems) || !aiItems.length) {
+      return fallbackItems || [];
+    }
+
+    const discardedLower = (discardedSkills || []).map((s) => s.toLowerCase().trim());
+    const processed = [];
+
+    for (const rawItem of aiItems) {
+      let itemText = (rawItem || "").trim();
+      if (!itemText) continue;
+
+      // Clean leading bullet or number markers
+      while (/^(\d+[\.\)]|[•\*\-–—])\s*/.test(itemText)) {
+        itemText = itemText.replace(/^(\d+[\.\)]|[•\*\-–—])\s*/, "").trim();
+      }
+
+      let isDiscarded = false;
+      for (const disc of discardedLower) {
+        if (disc.length >= 2) {
+          const regex = new RegExp("\\b" + escapeRegex(disc) + "\\b", "i");
+          if (regex.test(itemText)) {
+            isDiscarded = true;
+            break;
+          }
+        }
+      }
+      if (isDiscarded) continue;
+
+      const techChecks = ["kubernetes", "k8s", "aws", "gcp", "azure", "docker", "golang", "go", "russian"];
+      let hasUngroundedTech = false;
+      for (const tech of techChecks) {
+        const regex = new RegExp("\\b" + escapeRegex(tech) + "\\b", "i");
+        if (regex.test(itemText)) {
+          if (!isSkillGroundedInJob(tech, fullJobText)) {
+            hasUngroundedTech = true;
+            break;
+          }
+        }
+      }
+      if (hasUngroundedTech) continue;
+
+      processed.push(itemText);
+    }
+
+    if (processed.length >= 1) return processed.slice(0, 4);
+    return fallbackItems || [];
+  }
+
+  function extractRequiredExperience(jobText) {
+    if (!jobText) return null;
+    const clean = normalizeWhitespace(jobText);
+
+    // English: "5+ years of experience", "2-4 years experience", "at least 3 years"
+    const enMatch = clean.match(/\b(?:at least|minimum|over)?\s*(\d{1,2})\s*(?:[-–—]|to|\+)?\s*(\d{1,2})?\s*\+?\s*(?:years?|yrs?)(?:\s+(?:of\s+)?(?:proven\s+|hands-on\s+|relevant\s+|professional\s+)?experience)?/i);
+    if (enMatch) {
+      const min = parseInt(enMatch[1], 10);
+      const max = enMatch[2] ? parseInt(enMatch[2], 10) : (clean.includes(min + "+") ? null : min);
+      const label = max && max !== min ? `${min}-${max} years` : `${min}+ years`;
+      return { minYears: min, maxYears: max, raw: enMatch[0].trim(), label };
+    }
+
+    // Hebrew: "6 שנות ניסיון מוכח", "3-5 שנות ניסיון", "לפחות 3 שנות ניסיון"
+    const heMatch = clean.match(/(?:לפחות|מינימום|מעל)?\s*(\d{1,2})\s*(?:[-–—]|עד|\+)?\s*(\d{1,2})?\s*\+?\s*(?:שנות?|שנים)(?:\s+(?:של\s+)?(?:ניסיון(?:\s+מוכח)?))?/i);
+    if (heMatch) {
+      const min = parseInt(heMatch[1], 10);
+      const max = heMatch[2] ? parseInt(heMatch[2], 10) : null;
+      const label = max && max !== min ? `${min}-${max} years` : `${min}+ years`;
+      return { minYears: min, maxYears: max, raw: heMatch[0].trim(), label };
+    }
+
+    return null;
+  }
+
+  function extractResumeExperience(resumeText, userOverrideYears) {
+    if (typeof userOverrideYears === "number" && userOverrideYears > 0) {
+      return { years: userOverrideYears, source: "profile", label: `${userOverrideYears} years` };
+    }
+    if (!resumeText) return null;
+
+    // Check stated experience in summary: "with over 4 years of experience", "7+ years experience"
+    const statedMatch = resumeText.match(/\b(?:over|with)?\s*(\d{1,2})\+?\s*(?:years?|yrs?)(?:\s+of)?\s+(?:hands-on\s+|proven\s+|relevant\s+|professional\s+)?experience/i);
+    if (statedMatch) {
+      const y = parseInt(statedMatch[1], 10);
+      return { years: y, source: "summary", label: `~${y} years` };
+    }
+
+    // Check date ranges: "2020 - Present", "2018 - 2023"
+    const currentYear = new Date().getFullYear();
+    const dateRanges = [...resumeText.matchAll(/\b(20\d\d|19\d\d)\s*[-–—]\s*(Present|Current|Now|20\d\d|19\d\d)\b/gi)];
+    if (dateRanges.length > 0) {
+      let earliest = currentYear;
+      let latest = 0;
+      for (const match of dateRanges) {
+        const start = parseInt(match[1], 10);
+        const endStr = match[2].toLowerCase();
+        const end = (endStr.includes("present") || endStr.includes("current") || endStr.includes("now")) ? currentYear : parseInt(match[2], 10);
+        if (start >= 1990 && start <= currentYear) earliest = Math.min(earliest, start);
+        if (end >= 1990 && end <= currentYear) latest = Math.max(latest, end);
+      }
+      if (latest > earliest) {
+        const span = latest - earliest;
+        return { years: span, source: "dates", label: `~${span} years` };
+      }
+    }
+
+    return null;
+  }
+
+  function computeExperienceGap(jobText, resumeText, userOverrideYears) {
+    const req = extractRequiredExperience(jobText);
+    const cand = extractResumeExperience(resumeText, userOverrideYears);
+    if (!req) return null;
+
+    const reqMin = req.minYears;
+    const candYears = cand ? cand.years : null;
+
+    if (candYears === null) {
+      return {
+        required: req,
+        candidate: null,
+        status: "unknown",
+        gapYears: 0,
+        gapMessage: `Job specifies ${req.label} of experience; resume does not explicitly state total years.`
+      };
+    }
+
+    if (candYears < reqMin) {
+      const diff = reqMin - candYears;
+      return {
+        required: req,
+        candidate: cand,
+        status: "deficit",
+        gapYears: diff,
+        gapMessage: `Experience Gap: Role asks for ${req.label} of experience, but your resume reflects ${cand.label} (-${diff} yr${diff > 1 ? "s" : ""}).`,
+        bridgingTip: `To bridge the ${diff}-year experience gap, emphasize high-impact architectural ownership, leadership, and senior-level accomplishments in your recent projects.`
+      };
+    }
+
+    if (candYears >= reqMin) {
+      const diff = candYears - reqMin;
+      return {
+        required: req,
+        candidate: cand,
+        status: "match",
+        gapYears: 0,
+        strengthMessage: diff >= 2
+          ? `Experience Advantage: You bring ${cand.label} of experience, exceeding the ${req.label} requirement.`
+          : `Experience Match: You meet the ${req.label} experience requirement (${cand.label} detected).`
+      };
+    }
+
+    return null;
+  }
+
   // Pull extra candidate "skill-like" phrases out of a job description by
   // looking at comma / bullet separated lists near common requirement
   // headings.
@@ -493,7 +648,7 @@
     return candidates;
   }
 
-  function keywordMatch(resumeText, jobText, customSkills) {
+  function keywordMatch(resumeText, jobText, customSkills, userYearsOverride) {
     const dictionary = DEFAULT_SKILLS.concat(customSkills || []);
     const rawJobMentions = findMentions(jobText, dictionary);
     const rawResumeMentions = findMentions(resumeText, dictionary);
@@ -520,9 +675,37 @@
     const matchedSkills = rawMatched.map(formatSkill);
     const detectedJobSkills = relevantToJob.map(formatSkill);
 
-    const suggestions = missingSkills.slice(0, 6).map(
-      (skill) => `Mention "${skill}" explicitly if you have real experience with it — it's called out in the listing but not detected in your resume.`
-    );
+    // Compute experience gap
+    const expGap = computeExperienceGap(jobText, resumeText, userYearsOverride);
+
+    // Deterministic Strengths
+    const strengths = [];
+    if (expGap && expGap.status === "match" && expGap.strengthMessage) {
+      strengths.push(expGap.strengthMessage);
+    }
+    if (matchedSkills.length > 0) {
+      const topMatched = matchedSkills.slice(0, 4).join(", ");
+      strengths.push(`Direct match on core technologies: ${topMatched}.`);
+    }
+
+    // Deterministic Gaps
+    const gaps = [];
+    if (expGap && expGap.status === "deficit" && expGap.gapMessage) {
+      gaps.push(expGap.gapMessage);
+    }
+    if (missingSkills.length > 0) {
+      const topMissing = missingSkills.slice(0, 3).join(", ");
+      gaps.push(`Missing key qualifications from listing: ${topMissing}.`);
+    }
+
+    // Deterministic Suggestions
+    const suggestions = [];
+    if (expGap && expGap.status === "deficit" && expGap.bridgingTip) {
+      suggestions.push(expGap.bridgingTip);
+    }
+    missingSkills.slice(0, 5).forEach((skill) => {
+      suggestions.push(`Mention "${skill}" explicitly if you have real experience with it — it's called out in the listing but not detected in your resume.`);
+    });
 
     return {
       engine: "keyword",
@@ -530,7 +713,10 @@
       matchedSkills,
       missingSkills,
       detectedJobSkills,
+      strengths,
+      gaps,
       suggestions,
+      experienceAnalysis: expGap,
       note: relevantToJob.length === 0
         ? "Couldn't detect enough recognizable skill terms in this listing to score it confidently."
         : null
@@ -583,17 +769,27 @@
 
   // Builds the prompt sent to the on-device model (Gemini Nano via the
   // Prompt API) for per-job matching.
-  function buildMatchPrompt(resumeText, jobTitle, jobText, detectedJobSkills) {
+  function buildMatchPrompt(resumeText, jobTitle, jobText, detectedJobSkills, userYearsOverride) {
     const trimmedResume = trimResume(resumeText, 4500);
     const trimmedJob = trimJobPosting(jobText, 2600);
     const detectedSkillsText = (Array.isArray(detectedJobSkills) && detectedJobSkills.length)
       ? `\nDETECTED KEY TECHNOLOGIES IN JOB:\n${detectedJobSkills.slice(0, 20).join(", ")}\n`
       : "";
 
+    const expGap = computeExperienceGap(jobText, resumeText, userYearsOverride);
+    let expContext = "";
+    if (expGap) {
+      if (expGap.status === "deficit") {
+        expContext = `\nEXPERIENCE GAP DETECTED: Required ${expGap.required?.label}, Candidate has ${expGap.candidate?.label} (Deficit: -${expGap.gapYears} yrs). Include this gap in 'gaps' and advise how to position the resume to bridge it in 'suggestions'.\n`;
+      } else if (expGap.status === "match") {
+        expContext = `\nEXPERIENCE REQUIREMENT MET: Required ${expGap.required?.label}, Candidate has ${expGap.candidate?.label}. Mention as a strength in 'strengths'.\n`;
+      }
+    }
+
     return [
       "You are an expert resume-to-job matching assistant. Compare the RESUME to the JOB POSTING.",
       "Respond with ONLY valid JSON, no markdown fences, no commentary, in this exact shape:",
-      '{"matchPercent": <integer 0-100>, "missingSkills": [<string>, ...max 10], "suggestions": [<string>, ...max 5]}',
+      '{"matchPercent": <integer 0-100>, "strengths": [<string>, ...max 3], "gaps": [<string>, ...max 3], "missingSkills": [<string>, ...max 10], "suggestions": [<string>, ...max 5]}',
       "matchPercent reflects how well the resume's skills/experience fit this specific job.",
       "",
       "CRITICAL GROUNDING RULES (MANDATORY):",
@@ -601,12 +797,17 @@
       "2. NEVER invent, assume, or hallucinate skills (e.g. do NOT suggest Go, Kubernetes, AWS, Docker, or languages unless the job explicitly wrote them).",
       "3. If the candidate's resume already covers the required technologies, missingSkills should be an empty list [].",
       "",
+      "STRENGTHS & GAPS INSTRUCTIONS:",
+      "- 'strengths': 2-3 concise statements (10-25 words each) highlighting where the candidate matches or exceeds qualifications (tech stack alignment, seniority, domain achievements).",
+      "- 'gaps': 2-3 specific weaknesses or gaps (experience year deficit, missing core frameworks, lack of leadership/management if required).",
+      "",
       "SUGGESTIONS REQUIREMENTS (CRITICAL):",
-      "- Each item in 'suggestions' MUST be a full, detailed, actionable coaching sentence (at least 8-20 words) advising HOW to edit or position the resume for this job.",
+      "- Each item in 'suggestions' MUST be a full, detailed, actionable coaching sentence (at least 8-20 words) advising HOW to edit, bridge gaps, or position the resume for this job.",
       "- Example of a GOOD suggestion: 'Emphasize your background building backend services and REST APIs with C# and .NET to match this core requirement.'",
       "- Example of a BAD suggestion: 'C#' or 'SQL' or '.NET' (NEVER output bare skill names as suggestions).",
       "- If suggesting experience with a required tool, provide concrete advice on where or how to highlight it on the resume.",
       detectedSkillsText,
+      expContext,
       `JOB TITLE: ${jobTitle || "(untitled)"}`,
       `JOB POSTING:\n${trimmedJob}`,
       "",
@@ -667,6 +868,10 @@
     normalizeWhitespace,
     smartTrimText,
     trimJobPosting,
-    trimResume
+    trimResume,
+    filterGroundedItems,
+    extractRequiredExperience,
+    extractResumeExperience,
+    computeExperienceGap
   };
 })();
