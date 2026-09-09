@@ -194,11 +194,58 @@
 }
 
 #jobmatch-widget-root .jm-suggestions {
-  margin: 0;
-  padding-left: 18px;
+  margin: 0 !important;
+  padding: 0 !important;
+  list-style: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 7px !important;
 }
 
-#jobmatch-widget-root .jm-suggestions li { margin-bottom: 4px; }
+#jobmatch-widget-root .jm-suggestions li,
+#jobmatch-widget-root .jm-suggestion-item {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 7px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  list-style: none !important;
+  list-style-type: none !important;
+}
+
+#jobmatch-widget-root .jm-suggestion-bullet {
+  color: #4f46e5;
+  font-size: 14px;
+  line-height: 1.35;
+  font-weight: 700;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+#jobmatch-widget-root .jm-suggestion-text {
+  flex: 1;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #374151;
+  word-break: break-word;
+}
+
+#jobmatch-widget-root .jm-suggestions li:not(:has(.jm-suggestion-bullet)) {
+  position: relative !important;
+  padding-left: 14px !important;
+  display: block !important;
+}
+
+#jobmatch-widget-root .jm-suggestions li:not(:has(.jm-suggestion-bullet))::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: #4f46e5;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.35;
+}
 
 #jobmatch-widget-root .jm-panel--error {
   border-color: #fecaca;

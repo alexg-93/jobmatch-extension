@@ -112,7 +112,14 @@
           <div class="jm-section">
             <div class="jm-section-title">Suggestions</div>
             <ul class="jm-suggestions">
-              ${suggestions.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}
+              ${suggestions.map((s) => {
+                const cleaned = cleanSuggestionText(s);
+                return `
+                <li class="jm-suggestion-item">
+                  <span class="jm-suggestion-bullet">•</span>
+                  <span class="jm-suggestion-text" dir="auto">${escapeHtml(cleaned)}</span>
+                </li>`;
+              }).join("")}
             </ul>
           </div>` : ""}
       </div>`;
@@ -124,6 +131,14 @@
         onProfileSwitch(e.target.value);
       });
     }
+  }
+
+  function cleanSuggestionText(text) {
+    let s = (text || "").trim();
+    while (/^(\d+[\.\)]|[•\*\-–—])\s*/.test(s)) {
+      s = s.replace(/^(\d+[\.\)]|[•\*\-–—])\s*/, "").trim();
+    }
+    return s;
   }
 
   function escapeHtml(str) {
