@@ -101,6 +101,17 @@ cache so everything gets re-scored.
 
 ## Changelog
 
+### v0.5.0 (Major Release)
+- **Anti-Hallucination Grounding Engine**: Added strict job-posting grounding validation (`isSkillGroundedInJob`) for AI-detected missing skills and suggestions. Missing skills returned by the on-device model that do not appear anywhere in the job posting are automatically identified as hallucinations and discarded.
+- **Grounded AI Suggestions**: Added `filterGroundedSuggestions` to prevent the AI from recommending technologies (e.g., Go, Kubernetes, AWS) that the job post never asked for. If an AI suggestion references an ungrounded or hallucinated technology, it is filtered out in favor of grounded, actionable feedback.
+- **Disambiguated Tech Keyword Matching**:
+  - Protected the programming language **Go** against common English verbs ("go to", "go live", "let us go"). Only matches `golang` or Go in explicit programming context.
+  - Protected single-letter tech terms (`C`, `R`) and tools (`Excel`) against standard English prose collisions ("strive to excel", "we excel").
+  - Removed irrelevant natural language entries (`Russian`, `Hebrew`) from the default engineering dictionary to eliminate false positives from page footers and recruiter metadata.
+- **Prompt Anti-Hallucination Guardrails**: Updated `buildMatchPrompt` with explicit negative constraints instructing Chrome's Gemini Nano model to only extract skills that are explicitly written in the job description.
+- **Scraped Text Cleansing**: Added automated removal of LinkedIn UI artifacts ("Show more", "Show less", "Translate to...", "Report this job") during job description extraction.
+- **Cache v3 Invalidation**: Bumped cache key to `cache:v3:` and added automatic cleanup on installation/update so stale cached results with hallucinations are immediately invalidated.
+
 ### v0.4.1
 - **Fixed Extension Context Invalidation Handling**: Wrapped `chrome.runtime.sendMessage` and background checks in `content/drushim.js` and `content/linkedin.js` with `try...catch` and `!chrome.runtime?.id` guards. Automatically clears polling intervals and prevents uncaught errors when the extension is reloaded or updated in `chrome://extensions` while job tabs are open.
 

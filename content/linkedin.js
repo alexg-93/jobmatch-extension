@@ -55,9 +55,19 @@ function heuristicDescription() {
   return best && bestLen > 200 ? best.innerText.trim() : null;
 }
 
+function cleanJobDescription(raw) {
+  if (!raw) return "";
+  return raw
+    .replace(/\bShow (?:more|less)\b/gi, "")
+    .replace(/\b(?:See|Rate this) translation\b/gi, "")
+    .replace(/\bReport this job\b/gi, "")
+    .trim();
+}
+
 function extractJob() {
   const title = pickText(TITLE_SELECTORS, 2) || document.title.replace(/\s*\|\s*LinkedIn.*$/i, "").trim();
-  const description = pickText(DESC_SELECTORS, 40) || heuristicDescription();
+  const rawDesc = pickText(DESC_SELECTORS, 40) || heuristicDescription();
+  const description = cleanJobDescription(rawDesc);
   return { title, description };
 }
 

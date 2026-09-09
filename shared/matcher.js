@@ -9,7 +9,7 @@
   const DEFAULT_SKILLS = [
     // Languages
     "javascript", "typescript", "python", "java", "kotlin", "swift", "objective-c",
-    "c#", "c++", "c", "go", "golang", "rust", "php", "ruby", "scala", "perl", "r", "dart",
+    "c#", "c++", "c", "golang", "rust", "php", "ruby", "scala", "perl", "r", "dart",
     // Databases & Storage (relational & NoSQL)
     "sql", "sql server", "microsoft sql server", "t-sql", "tsql", "pl/sql",
     "mysql", "postgresql", "postgres", "mongodb", "nosql", "relational databases",
@@ -37,9 +37,9 @@
     // Practice, Architecture & Process
     "agile", "scrum", "git", "github", "gitlab", "unit testing", "jest", "cypress", "playwright",
     "tdd", "system design", "software architecture", "oop", "solid", "clean code", "security", "sentry",
-    // Generic Professional & Languages
+    // Generic Professional & Tools
     "project management", "communication", "leadership", "stakeholder management",
-    "team lead", "mentoring", "hebrew", "english", "russian", "excel"
+    "team lead", "mentoring", "microsoft excel", "excel"
   ];
 
   const SYNONYMS = {
@@ -209,12 +209,69 @@
     return SKILL_PRIORITY[norm] || 5;
   }
 
+  function isProgrammingGoInText(text) {
+    if (!text) return false;
+    if (/\b(?:golang|go\s*(?:lang|language|developer|engineer|backend|microservices))\b/i.test(text)) return true;
+    if (/(?:python|java|c\+\+|c#|rust|ruby|node|typescript|javascript)\s*[\/,]\s*go\b/i.test(text)) return true;
+    if (/\bgo\s*[\/,]\s*(?:python|java|c\+\+|c#|rust|ruby|node|typescript|javascript)(?:$|[^a-zA-Z0-9+#])/i.test(text)) return true;
+    return false;
+  }
+
+  function isProgrammingCInText(text) {
+    if (!text) return false;
+    if (/\b(?:c\s*language|c\s*programming|embedded\s*c)\b/i.test(text)) return true;
+    if (/\bc\s*[\/,]\s*(?:c\+\+|c#|assembly|rust|python)(?:$|[^a-zA-Z0-9+#])/i.test(text)) return true;
+    if (/(?:c\+\+|assembly|rust)\s*[\/,]\s*c\b/i.test(text)) return true;
+    return false;
+  }
+
+  function isProgrammingRInText(text) {
+    if (!text) return false;
+    if (/\b(?:r\s*language|r\s*programming|r\s*studio|r-project)\b/i.test(text)) return true;
+    if (/(?:python|sql|matlab|sas|spss)\s*[\/,]\s*r\b/i.test(text)) return true;
+    if (/\br\s*[\/,]\s*(?:python|sql|matlab|sas|spss)(?:$|[^a-zA-Z0-9+#])/i.test(text)) return true;
+    return false;
+  }
+
+  function isExcelSoftwareInText(text) {
+    if (!text) return false;
+    if (/\b(?:ms\s*excel|microsoft\s*excel|excel\s*(?:spreadsheets?|formulas?|vba|macros?|pivot|advanced))\b/i.test(text)) return true;
+    if (/\b(?:we|to|strive\s+to|will|you\'ll|you\s+will|ability\s+to|must)\s+excel\b/i.test(text)) return false;
+    if (/\bexcel\s+(?:at|in|beyond)\b/i.test(text)) return false;
+    if (/\bexcel\b/i.test(text)) return true;
+    return false;
+  }
+
   function findMentions(text, terms) {
     const t = normalize(text);
     const found = new Set();
+
+    const hasGo = isProgrammingGoInText(text);
+    const hasC = isProgrammingCInText(text);
+    const hasR = isProgrammingRInText(text);
+    const hasExcel = isExcelSoftwareInText(text);
+
     for (const term of terms) {
       const norm = (term || "").trim().toLowerCase();
       if (!norm) continue;
+
+      if (norm === "go" || norm === "golang") {
+        if (hasGo) found.add(term);
+        continue;
+      }
+      if (norm === "c") {
+        if (hasC) found.add(term);
+        continue;
+      }
+      if (norm === "r") {
+        if (hasR) found.add(term);
+        continue;
+      }
+      if (norm === "excel" || norm === "microsoft excel") {
+        if (hasExcel) found.add(term);
+        continue;
+      }
+
       // Prohibit + and # immediately following to avoid "c" matching "c#" or "c++"
       const boundaryEnd = "[^\\p{L}\\p{N}+#]";
       const boundaryStart = /^\./.test(norm) ? "(?:^|[^\\p{L}\\p{N}.])" : "(?:^|[^\\p{L}\\p{N}])";
@@ -229,16 +286,83 @@
     return (s || "").toLowerCase().replace(/[^a-z0-9+#]/g, "");
   }
 
-  function mergeMissingSkills(aiSkills, detSkills) {
+  function isSkillGroundedInJob(skillName, fullJobText, detectedJobSkills) {
+    if (!fullJobText) return true; // fallback if no job text provided
+    const clean = (skillName || "").trim();
+    if (!clean) return false;
+
+    const norm = clean.toLowerCase();
+    const canon = canonicalize(norm);
+
+    // 1. If it was already detected by deterministic matching in the job:
+    if (detectedJobSkills) {
+      const list = Array.isArray(detectedJobSkills)
+        ? detectedJobSkills
+        : (detectedJobSkills instanceof Set ? [...detectedJobSkills] : []);
+      const lowerList = list.map((s) => canonicalize(String(s).toLowerCase().trim()));
+      if (lowerList.includes(canon) || lowerList.includes(norm)) {
+        return true;
+      }
+    }
+
+    // 2. Ambiguous programming terms
+    if (canon === "go" || norm === "go") {
+      return isProgrammingGoInText(fullJobText);
+    }
+    if (canon === "c" || norm === "c") {
+      return isProgrammingCInText(fullJobText);
+    }
+    if (canon === "r" || norm === "r") {
+      return isProgrammingRInText(fullJobText);
+    }
+    if (canon === "excel" || norm === "excel") {
+      return isExcelSoftwareInText(fullJobText);
+    }
+
+    // 3. Search for variants in fullJobText
+    const variants = new Set([clean, norm, canon]);
+    if (DISPLAY_NAMES[canon]) variants.add(DISPLAY_NAMES[canon]);
+    if (DISPLAY_NAMES[norm]) variants.add(DISPLAY_NAMES[norm]);
+    for (const [syn, target] of Object.entries(SYNONYMS)) {
+      if (target === canon || target === norm) {
+        variants.add(syn);
+      }
+    }
+
+    const t = fullJobText.toLowerCase();
+    for (const v of variants) {
+      const vNorm = v.trim().toLowerCase();
+      if (!vNorm || vNorm.length < 2) continue;
+
+      const boundaryEnd = "[^\\p{L}\\p{N}+#]";
+      const boundaryStart = /^\./.test(vNorm) ? "(?:^|[^\\p{L}\\p{N}.])" : "(?:^|[^\\p{L}\\p{N}])";
+      const pattern = new RegExp(boundaryStart + "(?:[בהולמשכ]-?)?" + escapeRegex(vNorm) + "(?:$|" + boundaryEnd + ")", "iu");
+      if (pattern.test(" " + t + " ")) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function mergeMissingSkills(aiSkills, detSkills, fullJobText, detectedJobSkills) {
     const seen = new Set();
     const candidates = [];
+    const discardedAiSkills = [];
 
-    // 1. Process AI skills
+    // 1. Process AI skills with STRICT GROUNDING check against the job posting
     for (const item of aiSkills || []) {
       const clean = (item || "").trim();
       if (!clean) continue;
       const key = canonicalize(clean.toLowerCase());
       const norm = normalizeSkillKey(key);
+
+      // GROUNDING CHECK: verify the skill is actually mentioned in the job posting
+      if (fullJobText && !isSkillGroundedInJob(clean, fullJobText, detectedJobSkills)) {
+        discardedAiSkills.push(clean);
+        continue; // Drop hallucinated skill!
+      }
+
       if (norm && !seen.has(norm)) {
         seen.add(norm);
         const displayName = DISPLAY_NAMES[key] || clean;
@@ -246,7 +370,7 @@
       }
     }
 
-    // 2. Add deterministic missing skills that the AI omitted
+    // 2. Add deterministic missing skills that the AI omitted (guaranteed grounded)
     for (const item of detSkills || []) {
       const clean = (item || "").trim();
       if (!clean) continue;
@@ -260,7 +384,57 @@
 
     // Sort by priority (databases & core languages first), then take top 18
     candidates.sort((a, b) => a.priority - b.priority);
-    return candidates.map((c) => c.name).slice(0, 18);
+    const result = candidates.map((c) => c.name).slice(0, 18);
+    result.discardedAiSkills = discardedAiSkills;
+    return result;
+  }
+
+  function filterGroundedSuggestions(aiSuggestions, fullJobText, discardedSkills, fallbackSuggestions) {
+    if (!Array.isArray(aiSuggestions) || !aiSuggestions.length) {
+      return fallbackSuggestions || [];
+    }
+
+    const discardedLower = (discardedSkills || []).map((s) => s.toLowerCase().trim());
+
+    const valid = aiSuggestions.filter((sug) => {
+      const sugText = (sug || "").trim();
+      if (!sugText) return false;
+
+      // If suggestion explicitly mentions one of the discarded/hallucinated skills, reject it
+      for (const disc of discardedLower) {
+        if (disc.length >= 2) {
+          const regex = new RegExp("\\b" + escapeRegex(disc) + "\\b", "i");
+          if (regex.test(sugText)) {
+            return false;
+          }
+        }
+      }
+
+      // Check common tech hallucinations not in job (Go, Kubernetes, AWS, GCP, Azure, Russian, etc.)
+      const techChecks = ["kubernetes", "k8s", "aws", "gcp", "azure", "docker", "golang", "go", "russian"];
+      for (const tech of techChecks) {
+        const regex = new RegExp("\\b" + escapeRegex(tech) + "\\b", "i");
+        if (regex.test(sugText)) {
+          if (!isSkillGroundedInJob(tech, fullJobText)) {
+            return false;
+          }
+        }
+      }
+
+      return true;
+    });
+
+    if (valid.length >= 2) return valid.slice(0, 5);
+    const combined = [...valid, ...(fallbackSuggestions || [])];
+    const unique = [];
+    const seen = new Set();
+    for (const s of combined) {
+      if (!seen.has(s)) {
+        seen.add(s);
+        unique.push(s);
+      }
+    }
+    return unique.slice(0, 5);
   }
 
   // Pull extra candidate "skill-like" phrases out of a job description by
@@ -337,9 +511,12 @@
       "Respond with ONLY valid JSON, no markdown fences, no commentary, in this exact shape:",
       '{"matchPercent": <integer 0-100>, "missingSkills": [<string>, ...max 10], "suggestions": [<string>, ...max 5]}',
       "matchPercent reflects how well the resume's skills/experience fit this specific job.",
-      "missingSkills are concrete technologies, qualifications, or tools the job asks for that the resume does NOT show.",
-      "CRITICAL: Be comprehensive. Check Databases (SQL, NoSQL, etc.), Languages, Frameworks, Cloud, and Message Queues.",
-      "suggestions are short, specific, actionable edits to the resume (not generic advice).",
+      "",
+      "CRITICAL GROUNDING RULES (MANDATORY):",
+      "1. STRICT FACTUAL GROUNDING: ONLY include skills in missingSkills that are EXPLICITLY written or required in the JOB POSTING text.",
+      "2. NEVER invent, assume, or hallucinate skills (e.g. do NOT suggest Go, Kubernetes, AWS, Docker, or languages unless the job explicitly wrote them).",
+      "3. If the candidate's resume already covers the required technologies, missingSkills should be an empty list [].",
+      "4. suggestions must ONLY focus on bridging requirements and technologies explicitly stated in this specific job posting.",
       detectedSkillsText,
       `JOB TITLE: ${jobTitle || "(untitled)"}`,
       `JOB POSTING:\n${trimmedJob}`,
@@ -391,6 +568,9 @@
     canonicalize,
     keywordMatch,
     mergeMissingSkills,
+    isSkillGroundedInJob,
+    filterGroundedSuggestions,
+    isProgrammingGoInText,
     buildMatchPrompt,
     buildSkillExtractionPrompt,
     extractJson,

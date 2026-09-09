@@ -48,8 +48,18 @@ async function getResume() {
   return resume || null;
 }
 
+chrome.runtime.onInstalled.addListener(async () => {
+  try {
+    const all = await chrome.storage.local.get(null);
+    const staleKeys = Object.keys(all).filter((k) => k.startsWith("cache:v1:") || k.startsWith("cache:v2:"));
+    if (staleKeys.length) await chrome.storage.local.remove(staleKeys);
+  } catch (e) {
+    // ignore
+  }
+});
+
 function cacheKey(url) {
-  return "cache:v2:" + url;
+  return "cache:v3:" + url;
 }
 
 async function getCachedResult(url) {
@@ -85,19 +95,28 @@ async function analyzeJob({ url, title, description }) {
       detectedJobSkills: detMatch.detectedJobSkills || []
     });
     if (aiResponse?.ok && aiResponse.result) {
-      // Hybrid merge: merge AI qualitative missing skills with deterministic missing skills
+      // Hybrid merge with strict job-posting grounding validation:
+      // AI missing skills that do not appear in the job posting are dropped as hallucinations.
       const mergedMissing = self.JobMatch.mergeMissingSkills(
         aiResponse.result.missingSkills || [],
-        detMatch.missingSkills || []
+        detMatch.missingSkills || [],
+        fullJobText,
+        detMatch.detectedJobSkills || []
+      );
+
+      // Ground AI suggestions against the actual job posting
+      const groundedSuggestions = self.JobMatch.filterGroundedSuggestions(
+        aiResponse.result.suggestions,
+        fullJobText,
+        mergedMissing.discardedAiSkills || [],
+        detMatch.suggestions
       );
 
       result = {
         engine: "ai",
         matchPercent: typeof aiResponse.result.matchPercent === "number" ? aiResponse.result.matchPercent : (detMatch.matchPercent ?? null),
         missingSkills: mergedMissing,
-        suggestions: (Array.isArray(aiResponse.result.suggestions) && aiResponse.result.suggestions.length)
-          ? aiResponse.result.suggestions
-          : detMatch.suggestions,
+        suggestions: groundedSuggestions,
         matchedSkills: detMatch.matchedSkills || []
       };
     }
