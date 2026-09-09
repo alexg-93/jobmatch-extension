@@ -18,3 +18,6 @@ yarn-error.log*
 .vscode/
 *.swp
 *.swo
+
+# Builds & Archives
+*.zip
