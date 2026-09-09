@@ -250,6 +250,8 @@ async function populateOllamaModels(endpoint) {
       statusEl.className = "conn-status-text err";
     }
   }
+}
+
 async function populateOpenAiModels(endpoint, apiKey) {
   const datalist = $("openaiModelsList");
   if (!datalist) return;
