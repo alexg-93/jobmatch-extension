@@ -29,13 +29,16 @@
     return "var(--jm-low)";
   }
 
-  function renderLoading() {
+  function renderLoading(title = "") {
     const root = ensureRoot();
     root.style.display = "block";
     root.innerHTML = `
       <div class="jm-panel jm-panel--loading">
         <div class="jm-spinner"></div>
-        <span>Analyzing match…</span>
+        <div class="jm-loading-text">
+          <span>Analyzing match…</span>
+          ${title ? `<div class="jm-scanned-title" title="${escapeHtml(title)}">${escapeHtml(title)}</div>` : ""}
+        </div>
         <button class="jm-close" title="Dismiss">×</button>
       </div>`;
     root.querySelector(".jm-close")?.addEventListener("click", () => (root.style.display = "none"));
@@ -63,11 +66,15 @@
     const missing = result.missingSkills || [];
     const suggestions = result.suggestions || [];
     const engineLabel = result.engine === "ai" ? "on-device AI" : result.engine === "keyword" ? "keyword match" : "";
+    const jobTitle = result.jobTitle || "";
 
     root.innerHTML = `
       <div class="jm-panel">
         <div class="jm-header">
-          <span class="jm-title">JobMatch</span>
+          <div class="jm-header-text">
+            <span class="jm-title">JobMatch</span>
+            ${jobTitle ? `<div class="jm-scanned-title" title="${escapeHtml(jobTitle)}">${escapeHtml(jobTitle)}</div>` : ""}
+          </div>
           <button class="jm-close" title="Dismiss">×</button>
         </div>
         <div class="jm-score-row">

@@ -107,6 +107,11 @@ cache so everything gets re-scored.
 
 ## Changelog
 
+### v0.4.0 (Major Release)
+- **Restricted LinkedIn Scanning to Standalone Job Postings**: Gated LinkedIn analysis strictly to individual job pages (`https://www.linkedin.com/jobs/view/*`). Multi-job search panels (`/jobs/search-results/*`, `/jobs/search/*`, `/jobs/collections/*`) are now automatically excluded to prevent scanning entire search result lists.
+- **Scanned Job Title Displayed in Header**: Added the scanned job title directly below the "JobMatch" title in the results panel header (and during loading), giving clear visibility into which specific job was analyzed.
+- **Scoped LinkedIn Scraping**: Hardened description scraping to exclude search result lists and secondary suggestion feeds.
+
 ### v0.3.1
 - **Fixed Chrome Prompt API LanguageModel Warning**: Added explicit `expectedInputs` and `expectedOutputs` configuration specifying `languages: ["en"]` to `LanguageModel.availability()` and `LanguageModel.create()`, resolving Chrome's *"No output language was specified in a LanguageModel API request"* error in `chrome://extensions`.
 

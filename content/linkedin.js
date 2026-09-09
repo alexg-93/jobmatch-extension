@@ -63,11 +63,18 @@ function extractJob() {
 
 function jobKeyFromUrl() {
   const url = location.href;
-  let m = url.match(/currentJobId=(\d+)/);
+  let m = url.match(/\/jobs\/view\/(?:[^\/?#]+-)?(\d+)/i);
   if (m) return "linkedin:" + m[1];
-  m = url.match(/\/jobs\/view\/(?:[^\/?#]+-)?(\d+)/);
+  m = url.match(/currentJobId=(\d+)/i);
   if (m) return "linkedin:" + m[1];
   return "linkedin:" + url.split("?")[0];
+}
+
+function isSpecificJobPage() {
+  // Only analyze specific standalone job postings (e.g. https://www.linkedin.com/jobs/view/*)
+  // Multi-job search panels (e.g. /jobs/search-results/*, /jobs/search/*, /jobs/collections/*)
+  // show lists of multiple suggestions and should not be analyzed as a single job.
+  return /^\/jobs\/view\//i.test(location.pathname);
 }
 
 let currentJobKey = null;
@@ -82,7 +89,7 @@ chrome.storage?.local?.get("scanMode", (data) => {
 
 function analyze(job, key) {
   isAnalyzing = true;
-  window.JobMatchWidget.renderLoading();
+  window.JobMatchWidget.renderLoading(job.title);
   chrome.runtime.sendMessage(
     { type: "ANALYZE_JOB", payload: { url: key, title: job.title, description: job.description } },
     (result) => {
@@ -117,7 +124,7 @@ function analyze(job, key) {
 }
 
 function tick() {
-  if (!/^\/jobs(\/|$)/.test(location.pathname)) {
+  if (!isSpecificJobPage()) {
     window.JobMatchWidget?.hide?.();
     window.JobMatchWidget?.hideManualButton?.();
     return;

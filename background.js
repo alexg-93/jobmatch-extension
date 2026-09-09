@@ -109,6 +109,10 @@ async function analyzeJob({ url, title, description }) {
     result = detMatch;
   }
 
+  if (result) {
+    result.jobTitle = title || "";
+  }
+
   await setCachedResult(url, result);
   return result;
 }

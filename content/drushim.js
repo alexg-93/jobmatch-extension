@@ -89,7 +89,7 @@ chrome.storage?.local?.get("scanMode", (data) => {
 
 function analyze(job, key) {
   isAnalyzing = true;
-  window.JobMatchWidget.renderLoading();
+  window.JobMatchWidget.renderLoading(job.title);
   chrome.runtime.sendMessage(
     { type: "ANALYZE_JOB", payload: { url: key, title: job.title, description: job.description } },
     (result) => {

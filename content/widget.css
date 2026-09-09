@@ -55,14 +55,38 @@
 #jobmatch-widget-root .jm-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 8px;
+}
+
+#jobmatch-widget-root .jm-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 235px;
 }
 
 #jobmatch-widget-root .jm-title {
   font-weight: 700;
   font-size: 13px;
   color: #111827;
+}
+
+#jobmatch-widget-root .jm-scanned-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4b5563;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 230px;
+  line-height: 1.3;
+}
+
+#jobmatch-widget-root .jm-loading-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 #jobmatch-widget-root .jm-close {
