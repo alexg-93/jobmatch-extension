@@ -107,6 +107,9 @@ cache so everything gets re-scored.
 
 ## Changelog
 
+### v0.3.1
+- **Fixed Chrome Prompt API LanguageModel Warning**: Added explicit `expectedInputs` and `expectedOutputs` configuration specifying `languages: ["en"]` to `LanguageModel.availability()` and `LanguageModel.create()`, resolving Chrome's *"No output language was specified in a LanguageModel API request"* error in `chrome://extensions`.
+
 ### v0.3.0 (Major Release)
 
 #### Missing Keywords & Hybrid Engine Improvements

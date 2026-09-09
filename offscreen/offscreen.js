@@ -15,13 +15,23 @@ function getLanguageModelApi() {
   return null;
 }
 
+const MODEL_OPTIONS = {
+  expectedInputs: [{ type: "text", languages: ["en"] }],
+  expectedOutputs: [{ type: "text", languages: ["en"] }]
+};
+
 async function getAvailability() {
   try {
     const model = getLanguageModelApi();
     if (!model) return "unavailable";
 
     if (typeof model.availability === "function") {
-      const status = await model.availability();
+      let status;
+      try {
+        status = await model.availability(MODEL_OPTIONS);
+      } catch (e) {
+        status = await model.availability();
+      }
       if (status === "readily" || status === "available") return "available";
       if (status === "after-download" || status === "downloadable" || status === "downloading") return "downloadable";
       return "unavailable";
@@ -50,7 +60,12 @@ async function runPrompt(promptText) {
   if (availability === "unavailable") {
     throw new Error("On-device model unavailable on this device");
   }
-  const session = await model.create();
+  let session;
+  try {
+    session = await model.create(MODEL_OPTIONS);
+  } catch (e) {
+    session = await model.create();
+  }
   try {
     const result = await session.prompt(promptText);
     return result;
