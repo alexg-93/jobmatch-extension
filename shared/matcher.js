@@ -537,13 +537,57 @@
     };
   }
 
+  function normalizeWhitespace(str) {
+    return (str || "")
+      .replace(/[ \t]+/g, " ")
+      .replace(/\r\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+
+  function smartTrimText(text, maxChars) {
+    if (!text) return "";
+    const clean = normalizeWhitespace(text);
+    if (clean.length <= maxChars) return clean;
+
+    const slice = clean.slice(0, maxChars);
+    const lastNewline = slice.lastIndexOf("\n");
+    const lastPeriod = slice.lastIndexOf(". ");
+    const cutoff = Math.max(lastNewline, lastPeriod);
+    if (cutoff > maxChars * 0.75) {
+      return slice.slice(0, cutoff).trim() + "\n...";
+    }
+    return slice.trim() + "...";
+  }
+
+  function trimJobPosting(jobText, maxChars = 2600) {
+    if (!jobText) return "";
+    const clean = normalizeWhitespace(jobText);
+    if (clean.length <= maxChars) return clean;
+
+    // Detect if key requirements/qualifications appear later in the posting
+    const reqIndex = clean.search(/\b(?:requirements|qualifications|you(?:'re| are) a fit|what you need|who you are|basic qualifications|what we are looking for|skills required)\b/i);
+    if (reqIndex > 400 && reqIndex > maxChars - 1200) {
+      const headerIntro = smartTrimText(clean.slice(0, 500), 500);
+      const remainingBudget = maxChars - headerIntro.length - 12;
+      const requirementsSection = smartTrimText(clean.slice(reqIndex), remainingBudget);
+      return `${headerIntro}\n\n[...]\n\n${requirementsSection}`;
+    }
+
+    return smartTrimText(clean, maxChars);
+  }
+
+  function trimResume(resumeText, maxChars = 4500) {
+    return smartTrimText(resumeText, maxChars);
+  }
+
   // Builds the prompt sent to the on-device model (Gemini Nano via the
   // Prompt API) for per-job matching.
   function buildMatchPrompt(resumeText, jobTitle, jobText, detectedJobSkills) {
-    const trimmedResume = (resumeText || "").slice(0, 6000);
-    const trimmedJob = (jobText || "").slice(0, 4000);
+    const trimmedResume = trimResume(resumeText, 4500);
+    const trimmedJob = trimJobPosting(jobText, 2600);
     const detectedSkillsText = (Array.isArray(detectedJobSkills) && detectedJobSkills.length)
-      ? `\nDETECTED KEY TECHNOLOGIES IN JOB:\n${detectedJobSkills.slice(0, 25).join(", ")}\n`
+      ? `\nDETECTED KEY TECHNOLOGIES IN JOB:\n${detectedJobSkills.slice(0, 20).join(", ")}\n`
       : "";
 
     return [
@@ -619,6 +663,10 @@
     buildMatchPrompt,
     buildSkillExtractionPrompt,
     extractJson,
-    naiveSkillExtraction
+    naiveSkillExtraction,
+    normalizeWhitespace,
+    smartTrimText,
+    trimJobPosting,
+    trimResume
   };
 })();

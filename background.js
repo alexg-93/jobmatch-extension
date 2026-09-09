@@ -232,18 +232,36 @@ chrome.runtime.onInstalled.addListener(async () => {
 });
 
 function cacheKey(url, profileId) {
-  return `cache:v4:${profileId || "default"}:${url}`;
+  return `cache:v5:${profileId || "default"}:${url}`;
 }
 
 async function getCachedResult(url, profileId) {
   const key = cacheKey(url, profileId);
   const { [key]: cached } = await chrome.storage.local.get(key);
-  return cached || null;
+  if (!cached) return null;
+
+  // If entry was an ephemeral fallback (e.g. transient model-busy or timeout) and has expired,
+  // treat as a cache miss to give on-device AI another chance to analyze the job!
+  if (cached.expiresAt && Date.now() > cached.expiresAt) {
+    chrome.storage.local.remove(key).catch(() => {});
+    return null;
+  }
+  return cached;
 }
 
 async function setCachedResult(url, profileId, result) {
   const key = cacheKey(url, profileId);
-  await chrome.storage.local.set({ [key]: { ...result, cachedAt: Date.now() } });
+  const isFallback = result.engine === "keyword";
+  // Persistent 7-day TTL for successful AI matches, 60-second ephemeral TTL for transient keyword fallbacks
+  const ttlMs = isFallback ? 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
+  await chrome.storage.local.set({
+    [key]: {
+      ...result,
+      cachedAt: Date.now(),
+      expiresAt: Date.now() + ttlMs,
+      isFallback
+    }
+  });
 }
 
 async function analyzeJob({ url, title, description, profileId }) {
@@ -309,16 +327,18 @@ async function analyzeJob({ url, title, description, profileId }) {
         detMatch.suggestions
       );
 
-      result = {
+        result = {
         engine: "ai",
         matchPercent: typeof aiResponse.result.matchPercent === "number" ? aiResponse.result.matchPercent : (detMatch.matchPercent ?? null),
         missingSkills: mergedMissing,
         suggestions: groundedSuggestions,
         matchedSkills: detMatch.matchedSkills || []
       };
+    } else {
+      console.warn("[JobMatch Background] On-device AI unavailable or returned error:", aiResponse?.error || "Empty result");
     }
   } catch (e) {
-    // swallow — fall through to keyword matcher
+    console.warn("[JobMatch Background] On-device AI threw exception, falling back to keyword match:", e);
   }
 
   if (!result) {

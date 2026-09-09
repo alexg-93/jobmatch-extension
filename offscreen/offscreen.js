@@ -51,6 +51,8 @@ async function getAvailability() {
   }
 }
 
+let promptChain = Promise.resolve();
+
 async function runPrompt(promptText) {
   const model = getLanguageModelApi();
   if (!model) {
@@ -60,18 +62,31 @@ async function runPrompt(promptText) {
   if (availability === "unavailable") {
     throw new Error("On-device model unavailable on this device");
   }
-  let session;
-  try {
-    session = await model.create(MODEL_OPTIONS);
-  } catch (e) {
-    session = await model.create();
-  }
-  try {
-    const result = await session.prompt(promptText);
-    return result;
-  } finally {
-    session.destroy?.();
-  }
+
+  // Serialize prompt execution to prevent concurrent "Model Busy" collisions on-device
+  return new Promise((resolve, reject) => {
+    promptChain = promptChain
+      .catch(() => {}) // absorb prior failure so subsequent prompts run cleanly
+      .then(async () => {
+        let session;
+        try {
+          try {
+            session = await model.create(MODEL_OPTIONS);
+          } catch (e) {
+            session = await model.create();
+          }
+          const result = await session.prompt(promptText);
+          resolve(result);
+        } catch (err) {
+          console.warn("[JobMatch Offscreen] Prompt API execution error:", err);
+          reject(err);
+        } finally {
+          try {
+            session?.destroy?.();
+          } catch (e) {}
+        }
+      });
+  });
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
