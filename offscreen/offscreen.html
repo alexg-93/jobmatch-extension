@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body>
+  <!--
+    This page is never shown to the user. Chrome's on-device AI (Prompt API /
+    LanguageModel, backed by Gemini Nano) needs a full document context to
+    run reliably in an extension — the background service worker alone isn't
+    a safe bet across Chrome versions. chrome.offscreen creates this hidden
+    page on demand; all it does is receive a prompt via runtime messaging,
+    run it locally on-device, and message the result back.
+  -->
+  <script src="../shared/matcher.js"></script>
+  <script src="offscreen.js"></script>
+</body>
+</html>

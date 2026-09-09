@@ -1,0 +1,226 @@
+#jobmatch-widget-root {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 999999;
+  --jm-good: #1a9e5c;
+  --jm-mid: #b8860b;
+  --jm-low: #c0392b;
+  --jm-neutral: #6b7280;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  direction: ltr;
+  text-align: left;
+}
+
+#jobmatch-widget-root * {
+  box-sizing: border-box;
+}
+
+#jobmatch-widget-root .jm-panel {
+  width: 300px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  border: 1px solid #e5e7eb;
+  padding: 14px 16px;
+  color: #1f2937;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+}
+
+#jobmatch-widget-root .jm-panel--loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: auto;
+}
+
+#jobmatch-widget-root .jm-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #d1d5db;
+  border-top-color: #4f46e5;
+  border-radius: 50%;
+  animation: jm-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes jm-spin {
+  to { transform: rotate(360deg); }
+}
+
+#jobmatch-widget-root .jm-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+#jobmatch-widget-root .jm-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: #111827;
+}
+
+#jobmatch-widget-root .jm-close {
+  border: none;
+  background: transparent;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  color: #9ca3af;
+  padding: 0 2px;
+}
+
+#jobmatch-widget-root .jm-close:hover { color: #374151; }
+
+#jobmatch-widget-root .jm-score-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+#jobmatch-widget-root .jm-score {
+  font-size: 26px;
+  font-weight: 800;
+}
+
+#jobmatch-widget-root .jm-score-label {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+#jobmatch-widget-root .jm-note {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+#jobmatch-widget-root .jm-section { margin-top: 10px; }
+
+#jobmatch-widget-root .jm-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+#jobmatch-widget-root .jm-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+#jobmatch-widget-root .jm-tag {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+#jobmatch-widget-root .jm-tag--missing {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+#jobmatch-widget-root .jm-suggestions {
+  margin: 0;
+  padding-left: 18px;
+}
+
+#jobmatch-widget-root .jm-suggestions li { margin-bottom: 4px; }
+
+#jobmatch-widget-root .jm-panel--error {
+  border-color: #fecaca;
+}
+
+/* Floating Manual Scan Button */
+#jobmatch-manual-btn-root {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border-radius: 30px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18), 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #d1d5db;
+  padding: 5px 8px 5px 10px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  direction: ltr;
+  text-align: left;
+  user-select: none;
+  touch-action: none;
+  transition: box-shadow 0.2s ease;
+}
+
+#jobmatch-manual-btn-root:hover {
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
+}
+
+#jobmatch-manual-btn-root.jm-dragging {
+  opacity: 0.92;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+}
+
+.jm-manual-drag-handle {
+  cursor: grab;
+  color: #9ca3af;
+  font-size: 13px;
+  letter-spacing: -1px;
+  line-height: 1;
+  padding: 4px 2px;
+  display: flex;
+  align-items: center;
+}
+
+.jm-manual-drag-handle:hover {
+  color: #4b5563;
+}
+
+.jm-manual-action-btn {
+  border: none;
+  background: #4f46e5;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s ease;
+}
+
+.jm-manual-action-btn:hover {
+  background: #4338ca;
+}
+
+.jm-manual-close-btn {
+  border: none;
+  background: transparent;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  color: #9ca3af;
+  padding: 4px 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.jm-manual-close-btn:hover {
+  color: #374151;
+  background: #f3f4f6;
+}

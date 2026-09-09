@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>JobMatch</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <h1>JobMatch</h1>
+  <p class="subtitle">Upload your resume once. It's used to score every job you view on LinkedIn and Drushim.</p>
+
+  <div id="aiStatus" class="ai-status">Checking on-device AI…</div>
+
+  <div class="mode-section">
+    <div class="mode-header">
+      <span class="field-label" style="margin:0;">Scanning mode</span>
+      <div class="mode-toggle" id="scanModeToggle">
+        <button type="button" class="mode-btn active" data-mode="auto">Auto</button>
+        <button type="button" class="mode-btn" data-mode="manual">Manual</button>
+      </div>
+    </div>
+    <p class="hint" id="modeHint">Auto: automatically scans job listings when opened.</p>
+  </div>
+
+  <label class="field-label" for="resumeFile">Upload resume (PDF or .txt)</label>
+  <input type="file" id="resumeFile" accept=".pdf,.txt" />
+
+  <label class="field-label" for="resumeText">Or paste resume text</label>
+  <textarea id="resumeText" rows="8" placeholder="Paste your resume text here if you'd rather not upload a file…"></textarea>
+
+  <label class="field-label" for="customSkills">Extra skills to track (comma separated, optional)</label>
+  <input type="text" id="customSkills" placeholder="e.g. React Native, Zustand, TanStack Query" />
+  <p class="hint">Used by the offline fallback matcher — helps it recognize skills specific to your field.</p>
+
+  <div class="button-row">
+    <button id="saveBtn" class="btn btn-primary">Save resume</button>
+    <button id="clearBtn" class="btn btn-secondary">Clear</button>
+  </div>
+
+  <div id="status" class="status"></div>
+  <div id="resumeInfo" class="resume-info"></div>
+
+  <p class="footer">DOCX isn't supported yet — export to PDF or paste the text. Your resume stays on this device; nothing is uploaded anywhere.</p>
+
+  <script src="../lib/pdf.min.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

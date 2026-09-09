@@ -1,0 +1,105 @@
+# JobMatch
+
+Upload your resume once. See a match % and missing skills on LinkedIn and
+Drushim job listings as you browse.
+
+## Install (unpacked, for development)
+
+1. Open `chrome://extensions`
+2. Enable **Developer mode** (top right)
+3. Click **Load unpacked** → select this folder
+4. Click the JobMatch icon in the toolbar → upload/paste your resume → **Save resume**
+5. Browse a job on `linkedin.com/jobs/...` or `drushim.co.il` — a panel appears bottom-right
+
+## How matching works
+
+Two engines, automatic fallback, no configuration needed:
+
+1. **On-device AI (preferred)** — Chrome's built-in Gemini Nano model
+   (the "Prompt API" / `LanguageModel`), run inside a hidden offscreen
+   page. Free, no API key, nothing leaves the machine. This is a newer
+   Chrome capability that's still rolling out — the popup shows whether
+   it's active on your install.
+2. **Offline keyword matcher (fallback)** — always available, no
+   dependency on the AI API. Uses a built-in skills dictionary
+   (`shared/matcher.js`) plus whatever you add in the popup's "Extra
+   skills to track" field.
+
+If on-device AI isn't available (or the model output isn't parseable),
+the extension silently falls back to the keyword matcher — you'll always
+get a result, just a less nuanced one.
+
+## Architecture
+
+```
+content/linkedin.js, drushim.js   → scrape job title + description, poll for
+                                     SPA navigation changes, render the widget
+content/widget.js, widget.css     → the floating results panel
+background.js                     → message hub, resume storage, per-job
+                                     result cache, AI/fallback decision
+offscreen/offscreen.js            → the only place that touches the
+                                     on-device LanguageModel API
+shared/matcher.js                 → skills dictionary, keyword fallback,
+                                     AI prompt templates, JSON parsing
+popup/                            → resume upload (PDF via pdf.js, or paste)
+```
+
+Job results are cached per job ID in `chrome.storage.local` so revisiting
+a listing doesn't re-run the analysis. Saving a new resume clears the
+cache so everything gets re-scored.
+
+## Known limitations (read before relying on this)
+
+- **DOCX isn't supported.** Only PDF and plain text. Export your resume
+  to PDF or paste the text in.
+- **Drushim selectors are best-effort guesses**, not verified against a
+  live page — I built this without being able to inspect an authenticated
+  Drushim job page's real DOM. The extension falls back to a heuristic
+  ("grab the largest text block on the page") when the named selectors
+  don't match, which works reasonably but isn't precise. **To fix
+  properly:** open a real job listing, DevTools → Elements, find the
+  actual container for the job title and full description, and update
+  `TITLE_SELECTORS` / `DESC_SELECTORS` in `content/drushim.js`.
+- **LinkedIn selectors will drift over time** — LinkedIn changes its
+  class names periodically. The same fix applies: inspect, update
+  `content/linkedin.js`.
+- **On-device AI availability varies by machine** (Chrome version,
+  hardware, whether the model has been downloaded yet) — this is why the
+  keyword fallback exists at all, not an edge case to ignore.
+- The keyword matcher's accuracy depends on its skill dictionary. Add
+  field-specific terms via the popup's "Extra skills to track" box.
+
+## Extending later
+
+- **AllJobs support**: copy `content/drushim.js` as a template, add a
+  `content_scripts` entry in `manifest.json` for the AllJobs domain, and
+  set real selectors once you've inspected the DOM.
+- **Swap in a cloud LLM** instead of/alongside on-device AI: add the API
+  call in `background.js`'s `analyzeJob()`, gated behind an API key
+  stored via the popup — the message-passing structure doesn't need to
+  change, only where `analyzeJob` sources its `result` from.
+- **Element picker in the popup** ("click the job description on the
+  page to teach the extension where it is") would make the scrapers far
+  more robust to site redesigns than hardcoded selectors — worth doing
+  before this goes beyond personal use.
+
+## Changelog
+
+### v0.2.0
+
+#### New Features
+- **Auto vs. Manual Scan Toggle**: Added a scanning mode switcher in the extension popup. Choose **Auto** for automatic background analysis upon opening a job listing, or **Manual** to analyze on demand.
+- **Draggable Floating Scan Widget**: When in Manual mode, a floating `✨ Scan Job` button appears on job listings in the top-right corner. Features smooth dragging (`⋮⋮` handle) to reposition anywhere across the viewport with boundary clamping, and a dismiss (`×`) button.
+- **Save Button Loading Spinner & Double-Click Guard**: Added an animated spinner inside the popup's "Save resume" button, disabled inputs and buttons during processing, and prevented duplicate submission requests while extracting skills.
+
+#### Bug Fixes & Stability
+- **Fixed Infinite Scanning Loop on LinkedIn**: Eliminated the loop where live applicant counters and relative timestamps changed text length between polling ticks, causing results to be wiped and re-scanned repeatedly. Replaced fragile length checking with discrete job completion state tracking (`analyzedJobKey`).
+- **Restricted Drushim to Single-Job Listings**: Enforced strict `/job/*` pathname gating. Multi-job search listings (`https://www.drushim.co.il/jobs/search/*`) and catalog routes are no longer erroneously scanned.
+- **Fixed Job Title Extraction**: Removed a hardcoded `> 40` character requirement in `pickText()` that caused almost all real job titles (e.g. "Software Engineer") to fail and fall back to `document.title`. Added a `minLength = 2` threshold for titles.
+- **Fixed Saved Resume Disappearing in Popup**: Populated `$("resumeText").value` on popup open so saved resumes remain visible, allowing users to review or edit custom skills without having to re-paste their resume text.
+- **Fixed Chrome Prompt API / Gemini Nano Detection**: Updated `offscreen.js` to recognize `ai.languageModel` / `window.ai.languageModel` (in addition to `LanguageModel`) and supported Chrome's `"readily"` and `"after-download"` status responses.
+- **Added Skill Synonym Mapping & Canonicalization**: Normalized common skill variants so resume and job posts match seamlessly (e.g. `React` ↔ `ReactJS`, `NodeJS` ↔ `Node.js`, `Golang` ↔ `Go`, `k8s` ↔ `Kubernetes`, `Postgres` ↔ `PostgreSQL`).
+- **Added Hebrew Prefix Support**: Enhanced word boundary matching with unicode regex (`[\p{L}\p{N}]`) and support for attached Hebrew prepositions (e.g. `ב-React`, `בניהול פרויקטים`) to prevent false negatives and false positives on Israeli job listings.
+- **Fixed Manual Button Dismiss Flickering**: Fixed an issue where clicking "×" on the floating manual scan button caused it to immediately re-appear on the next 1.5s polling tick. Added job-scoped dismissal tracking (`dismissedManualKey`).
+- **Widget State Restoration**: Fixed dismissed widgets remaining hidden permanently on subsequent job navigations by resetting `display = "block"` across all render states.
+
