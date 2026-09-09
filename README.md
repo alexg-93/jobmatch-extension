@@ -1,15 +1,22 @@
 # JobMatch
 
-Upload your resume once. See a match % and missing skills on LinkedIn and
-Drushim job listings as you browse.
+Upload your resume once. See your match %, strengths, gaps, and missing skills on LinkedIn, Drushim, AllJobs, Comeet, and Greenhouse job listings as you browse.
 
 ## Features
 
 - **🔒 100% Private On-Device AI**: Powered by Chrome's built-in Gemini Nano model (Prompt API / `LanguageModel`). Runs completely locally on your device — zero API keys, no network calls, and your resume never leaves your computer.
 - **⚡ Hybrid Matching Engine**: Merges on-device generative AI with deterministic ground-truth keyword extraction. Seeding detected job requirements into the prompt ensures critical technical gaps (like `SQL`, `PostgreSQL`, `MongoDB`, `.NET`, `RabbitMQ`) are never omitted.
-- **🌐 Native Support for LinkedIn & Drushim**:
-  - **LinkedIn**: Analyzes dedicated job pages (`https://www.linkedin.com/jobs/view/*`), while automatically ignoring multi-job search result panels (`/jobs/search-results/*`, `/jobs/search/*`, `/jobs/collections/*`) to prevent scraping entire search lists.
-  - **Drushim (דרושים)**: Optimized for Israeli tech jobs. Smartly targets individual job listings (`/job/*`) while ignoring search/catalog index pages (`/jobs/search/*`).
+- **🌐 Broad Platform Support (LinkedIn, Drushim, AllJobs, Comeet, Greenhouse)**:
+  - **LinkedIn**: Analyzes dedicated job pages (`https://www.linkedin.com/jobs/view/*`), while automatically ignoring multi-job search panels.
+  - **Drushim (דרושים)**: Optimized for Israeli tech jobs (`https://www.drushim.co.il/job/*`).
+  - **AllJobs (אולג'ובס)**: Native support for individual job postings (`https://www.alljobs.co.il/Search/UploadSingle.aspx?JobID=*` and `/jobs/*`).
+  - **Comeet**: Supports tech career portals and company job boards (`https://comeet.com/jobs/*` and `https://*.comeet.com/jobs/*`).
+  - **Greenhouse**: Supports global top-tier ATS job boards (`https://boards.greenhouse.io/*`).
+- **📊 360-Degree Feedback Report**:
+  - 🟢 **Key Strengths**: Highlights where your skills and accomplishments match or exceed the job qualifications.
+  - ⚠️ **Gaps & Weaknesses**: Clear deficit identification including **Experience Gap Analysis** (e.g. role asks for 5+ years vs 4 years detected).
+  - 🔴 **Missing Technologies**: Explicit tag badges for required tools not detected in your resume.
+  - 💡 **How to Bridge the Gaps**: Actionable coaching sentences advising how to position your experience to overcome deficits.
 - **🏷️ Scanned Job Title in Header**: Displays the exact job title analyzed directly underneath the "JobMatch" title in the results panel header (and during loading), so you always know which job is active.
 - **🔄 Auto & Manual Scanning Modes**:
   - **Auto Mode**: Automatically evaluates job postings in the background as you browse.
@@ -35,7 +42,7 @@ Drushim job listings as you browse.
 2. Enable **Developer mode** (top right)
 3. Click **Load unpacked** → select this folder
 4. Click the JobMatch icon in the toolbar → manage profiles, upload/paste resumes → **Save resume**
-5. Browse a job on `linkedin.com/jobs/view/...` or `drushim.co.il/job/...` — a panel appears bottom-right with an instant profile switcher dropdown
+5. Browse a job on LinkedIn, Drushim, AllJobs, Comeet, or Greenhouse — a panel appears bottom-right with an instant profile switcher dropdown
 
 ## How matching works
 
@@ -48,8 +55,8 @@ JobMatch runs a dual-layer matching process on every job view:
 ## Architecture
 
 ```
-content/linkedin.js, drushim.js   → scrape job title + description, poll for
-                                     SPA navigation changes, render the widget
+content/*.js                      → LinkedIn, Drushim, AllJobs, Comeet, Greenhouse
+                                     adapters to scrape job details & handle navigation
 content/widget.js, widget.css     → the floating results panel
 background.js                     → message hub, resume storage, per-job
                                      result cache, AI/fallback decision
