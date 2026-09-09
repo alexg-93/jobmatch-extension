@@ -107,7 +107,7 @@ cache so everything gets re-scored.
 
 ## Changelog
 
-### v0.2.1
+### v0.3.0 (Major Release)
 
 #### Missing Keywords & Hybrid Engine Improvements
 - **Hybrid Matching Engine**: Replaced the previous binary "either AI or Keyword" architecture with a hybrid approach. Even when Chrome's on-device Gemini Nano model runs, deterministic keyword extraction runs in parallel as a ground-truth baseline, merging AI's qualitative findings with deterministic missing skills so critical gaps (like `SQL`, `PostgreSQL`, `MongoDB`) are never missed.
