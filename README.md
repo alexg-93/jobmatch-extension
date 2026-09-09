@@ -1,116 +1,133 @@
-# JobMatch
+# JobMatch — AI Resume Matcher
 
-Upload your resume once. See your match %, strengths, gaps, and missing skills on LinkedIn, Drushim, AllJobs, Comeet, and Greenhouse job listings as you browse.
+Upload your resume once. See your match %, key strengths, gaps, experience deficit, and missing skills on **LinkedIn, Drushim, AllJobs, Comeet, and Greenhouse** job listings as you browse.
+
+Powered by **Google Gemini Cloud**, on-device **Chrome Gemini Nano**, or local offline LLMs (**LM Studio & Ollama**).
 
 ## Features
 
-- **🔒 100% Private Local AI (Gemini Nano, Ollama & LM Studio)**:
-  - **Chrome Built-in AI**: Powered by Gemini Nano (Prompt API). Zero-setup, free, and runs entirely offline on-device.
-  - **Ollama (Local REST API)**: Direct connection to local LLMs (`http://localhost:11434`) such as `llama3.2`, `qwen2.5`, or `gemma2` with automatic model discovery.
-  - **Custom / OpenAI-Compatible**: Connect to LM Studio (`http://localhost:1234/v1`), LocalAI, or vLLM with custom endpoints.
-  - Zero data leaves your computer. 100% offline privacy.
-- **⚡ Hybrid Matching Engine**: Merges on-device generative AI with deterministic ground-truth keyword extraction. Seeding detected job requirements into the prompt ensures critical technical gaps (like `SQL`, `PostgreSQL`, `MongoDB`, `.NET`, `RabbitMQ`) are never omitted.
-- **🌐 Broad Platform Support (LinkedIn, Drushim, AllJobs, Comeet, Greenhouse)**:
-  - **LinkedIn**: Analyzes dedicated job pages (`https://www.linkedin.com/jobs/view/*`), while automatically ignoring multi-job search panels.
-  - **Drushim (דרושים)**: Optimized for Israeli tech jobs (`https://www.drushim.co.il/job/*`).
-  - **AllJobs (אולג'ובס)**: Native support for individual job postings (`https://www.alljobs.co.il/Search/UploadSingle.aspx?JobID=*` and `/jobs/*`).
-  - **Comeet**: Supports tech career portals and company job boards (`https://comeet.com/jobs/*` and `https://*.comeet.com/jobs/*`).
-  - **Greenhouse**: Supports global top-tier ATS job boards (`https://boards.greenhouse.io/*`).
-- **📊 360-Degree Feedback Report**:
+- **🤖 Flexible AI Engine Selection**:
+  - **☁️ Google Gemini Cloud API**: Zero local hardware requirement. Powered by official Gemini models with native JSON formatting and model selection (`gemini-3.7-flash` default, `gemini-3.8-flash`, `gemini-3.5-flash-lite`, `gemini-2.5-flash`). Includes in-popup connection testing and direct link to Google AI Studio.
+  - **🔒 Chrome Built-in AI (Gemini Nano)**: 100% private, on-device inference via Chrome's Prompt API. Zero-setup, free, runs entirely offline.
+  - **🦙 Ollama (Local REST API)**: Direct connection to local LLMs (`http://localhost:11434`) such as `llama3.2`, `qwen2.5`, or `mistral` with automatic model discovery.
+  - **💻 LM Studio & OpenAI-Compatible**: Connect to LM Studio (`http://localhost:1234/v1`), LocalAI, or vLLM with model auto-discovery (`/v1/models`) and datalist autocompletion.
+- **🛡️ Multi-Tier Fallback Pipeline**:
+  - **Tier 1 (Primary)**: Runs your chosen AI engine (LM Studio / Ollama / Gemini Cloud).
+  - **Tier 2 (Fallback 1)**: If your local model or cloud provider times out or fails, JobMatch automatically falls back to **Chrome Built-in Gemini Nano** to preserve on-device AI matching.
+  - **Tier 3 (Fallback 2)**: If Gemini Nano is also disabled or unavailable, JobMatch falls back gracefully to **Deterministic Keyword Match**.
+  - **User Transparency**: Displays an informative banner in the widget if an engine fallback occurred (`fallbackNote`).
+- **🧠 Full Reasoning Models Support (Phi-4, DeepSeek-R1)**:
+  - **180-Second (3-minute) Timeout**: Gives local reasoning models plenty of time to deliberate on CPU/GPU without client disconnections.
+  - **Thinking Parser**: Automatically parses `message.content` and falls back to `message.reasoning_content` if content is empty. Strips `<think>...</think>` tags before JSON decoding.
+  - **Concise Directives**: Prompt instructs reasoning models to avoid unnecessary preamble and output structured JSON directly.
+- **⚡ Hybrid Matching & Zero Hallucinations**:
+  - Merges AI reasoning with a deterministic ground-truth dictionary.
+  - Strict job-posting validation (`isSkillGroundedInJob`): any skill hallucinated by an AI that does not appear in the listing is automatically discarded.
+  - Critical technical gaps (like `SQL`, `PostgreSQL`, `MongoDB`, `.NET`, `RabbitMQ`) are guaranteed never to be missed.
+- **🌐 5 Major Job Platforms Supported**:
+  - **LinkedIn**: Standalone job pages (`https://www.linkedin.com/jobs/view/*`). Automatically ignores multi-job search panels.
+  - **Drushim (דרושים)**: Israeli tech job postings (`https://www.drushim.co.il/job/*`).
+  - **AllJobs (אולג'ובס)**: Dedicated job pages (`https://www.alljobs.co.il/Search/UploadSingle.aspx?JobID=*` and `/jobs/*`). Scoped container isolation prevents SEO sidebar and similar-jobs bleed.
+  - **Comeet**: Tech career portals and company job boards (`https://comeet.com/jobs/*` and `https://*.comeet.com/jobs/*`).
+  - **Greenhouse**: Top-tier ATS company boards (`https://boards.greenhouse.io/*`).
+- **📊 360-Degree Feedback & Experience Gap Analysis**:
   - 🟢 **Key Strengths**: Highlights where your skills and accomplishments match or exceed the job qualifications.
-  - ⚠️ **Gaps & Weaknesses**: Clear deficit identification including **Experience Gap Analysis** (e.g. role asks for 5+ years vs 4 years detected).
-  - 🔴 **Missing Technologies**: Explicit tag badges for required tools not detected in your resume.
+  - ⚠️ **Gaps & Weaknesses**: Clear deficit identification including **Experience Gap Analysis** (e.g. role asks for 5+ years vs 4 years detected, or notes an experience advantage when you exceed requirements).
+  - 🔴 **Missing Technologies**: Explicit tag badges for required tools not detected in your resume, prioritized by technical domain.
   - 💡 **How to Bridge the Gaps**: Actionable coaching sentences advising how to position your experience to overcome deficits.
-- **🏷️ Scanned Job Title in Header**: Displays the exact job title analyzed directly underneath the "JobMatch" title in the results panel header (and during loading), so you always know which job is active.
+- **👥 Multiple Resume Profiles**:
+  - Save and manage up to 3 distinct resume profiles (e.g. *Full Stack Developer*, *Frontend Specialist*, *Team Lead*) in the popup.
+  - On-the-fly profile switcher dropdown directly inside the floating job widget to compare which resume scores higher on any listing.
+  - Profile-scoped caching (`cache:v3:<profileId>:<url>`) with zero-latency switching.
 - **🔄 Auto & Manual Scanning Modes**:
   - **Auto Mode**: Automatically evaluates job postings in the background as you browse.
-  - **Manual Mode**: Only analyzes when you want it to. Displays a discreet floating `✨ Scan Job` button on job pages.
-- **🖱️ Draggable Floating Trigger**: In manual mode, drag the `✨ Scan Job` button anywhere on your screen using the `⋮⋮` handle, or dismiss it with `×`. Positions clamp smoothly within viewport boundaries.
-- **🎯 Match Percentage & Missing Skills Badges**: Clean floating results card showing your overall match score, color-coded status, active engine badge (`on-device AI` or `keyword match`), and tag badges for required technologies missing from your resume.
-- **📊 Priority-Based Skill Sorting**: Missing skills are sorted by technical domain hierarchy (Databases & Storage, Languages & Frameworks, Queues, Cloud & DevOps first), with standardized capitalization (`SQL`, `PostgreSQL`, `MongoDB`, `RabbitMQ`, `C#`, `.NET`).
-- **💡 Actionable Resume Suggestions**: Provides bulleted, targeted recommendations on which experiences, frameworks, or tools to highlight to pass ATS screening.
-- **🇮🇱 Hebrew & Unicode Support**: Built-in word boundary support for Hebrew characters and attached prefixes (`ב-`, `ה-`, `ו-`, `ל-`, `מ-`, `ש-`, `כ-`) common on Drushim (e.g. `ב-React`, `בניהול פרויקטים`).
-- **🔤 Skill Synonyms & Canonicalization**: Smart normalization for common variations (e.g. `React` ↔ `ReactJS`, `NodeJS` ↔ `Node.js`, `Golang` ↔ `Go`, `k8s` ↔ `Kubernetes`, `Postgres` ↔ `PostgreSQL`, `Rabbit MQ` ↔ `RabbitMQ`).
-- **🛡️ Robust Extension Lifecycle**: Gracefully handles extension updates and reloads in `chrome://extensions` with automatic timer teardown, preventing context invalidation errors.
-- **👥 Multiple Resume Profiles**: Save and switch between up to 3 targeted resume profiles (e.g. *Full Stack Developer*, *Frontend Specialist*, *Team Lead*). Compare match percentages directly on the job page with an instant profile switcher dropdown.
-- **📄 Easy Resume Upload & Local Cache**:
-  - Upload PDF directly (parsed on-device via bundled `pdf.js`) or paste plain text for each profile.
-  - Add custom skills to track in the popup.
-  - Interactive save button with loading spinner and double-click prevention.
-  - Profile-scoped per-job caching (`cache:v3:<profileId>:<url>`) in `chrome.storage.local` with automatic cache invalidation when updating a profile.
+  - **Manual Mode**: Displays a floating draggable `✨ Scan Job` button (`⋮⋮` drag handle) with boundary clamping and dismiss button.
+- **🏷️ Scanned Job Title in Header**: Displays the exact job title analyzed in the widget header and during loading.
+- **🇮🇱 Hebrew & Unicode Support**: Built-in word boundary matching with unicode regex and support for attached Hebrew prepositions (`ב-`, `ה-`, `ו-`, `ל-`, `מ-`, `ש-`, `כ-`) common on Drushim and AllJobs (e.g. `ב-React`, `שנה ניסיון`, `שנתיים ניסיון`).
+- **🔤 Skill Synonyms & Canonicalization**: Smart normalization for common variants (e.g. `React` ↔ `ReactJS`, `NodeJS` ↔ `Node.js`, `Golang` ↔ `Go`, `k8s` ↔ `Kubernetes`, `Postgres` ↔ `PostgreSQL`, `Rabbit MQ` ↔ `RabbitMQ`).
 
+## AI Providers Comparison
+
+| Provider | Type | Privacy | Hardware Requirements | Setup |
+| :--- | :--- | :--- | :--- | :--- |
+| **Google Gemini Cloud** | Cloud REST API | Google API Terms | None (runs in Google Cloud) | Paste Gemini API Key from Google AI Studio |
+| **Chrome Built-in (Nano)** | Local On-Device | 100% Private Offline | Chrome 128+ with Prompt API enabled | Built-in to Chrome |
+| **Ollama** | Local REST API | 100% Private Offline | Local GPU / CPU (Ollama running) | Set endpoint `http://localhost:11434` |
+| **LM Studio / Custom** | Local OpenAI-Compat | 100% Private Offline | Local GPU / Apple Silicon (LM Studio) | Set endpoint `http://localhost:1234/v1` |
+| **Keyword Matcher** | Deterministic Regex | 100% Private Offline | Zero (instant regex execution) | Always available fallback |
 
 ## Install (unpacked, for development)
 
 1. Open `chrome://extensions`
 2. Enable **Developer mode** (top right)
 3. Click **Load unpacked** → select this folder
-4. Click the JobMatch icon in the toolbar → manage profiles, upload/paste resumes → **Save resume**
+4. Click the JobMatch icon in the toolbar:
+   - Select your preferred AI engine (**Nano**, **Gemini**, **Ollama**, or **Custom**)
+   - Manage resume profiles, upload PDF or paste text → **Save resume**
 5. Browse a job on LinkedIn, Drushim, AllJobs, Comeet, or Greenhouse — a panel appears bottom-right with an instant profile switcher dropdown
-
-## How matching works
-
-### Hybrid Matching Engine (v0.3.0+)
-JobMatch runs a dual-layer matching process on every job view:
-1. **Deterministic Ground-Truth Layer**: A comprehensive tech dictionary extracts exact technologies, cloud providers, databases, and message brokers from both the resume and the job listing.
-2. **On-Device AI Layer (Chrome Gemini Nano)**: Analyzes semantic requirements, seniority level, and contextual qualifications.
-3. **Strict Grounding & Merging**: Discards AI hallucinations, preserves exact technical gaps (like SQL, PostgreSQL, Docker), and formats acronyms cleanly.
 
 ## Architecture
 
 ```
-content/*.js                      → LinkedIn, Drushim, AllJobs, Comeet, Greenhouse
-                                     adapters to scrape job details & handle navigation
-content/widget.js, widget.css     → the floating results panel
-background.js                     → message hub, resume storage, per-job
-                                     result cache, AI/fallback decision
-offscreen/offscreen.js            → the only place that touches the
-                                     on-device LanguageModel API
-shared/matcher.js                 → skills dictionary, keyword fallback,
-                                     AI prompt templates, JSON parsing
-popup/                            → resume upload (PDF via pdf.js, or paste)
+manifest.json                     → MV3 extension manifest with site permissions & Gemini API access
+content/
+  widget.js, widget.css           → Floating results card, manual scan trigger & profile switcher
+  linkedin.js                     → LinkedIn job scraper & single-job view router
+  drushim.js                      → Drushim job scraper & single-job view router
+  alljobs.js                      → AllJobs DOM adapter with container scoping & title cleaning
+  comeet.js                       → Comeet career portal & company board adapter
+  greenhouse.js                   → Greenhouse ATS board adapter
+background.js                     → Service worker: AI routing hub (Gemini, Ollama, LM Studio, Nano),
+                                     multi-tier fallback, resume storage & profile-scoped cache
+offscreen/
+  offscreen.html, offscreen.js    → Isolated sandbox executing Chrome's window.ai LanguageModel API
+shared/
+  matcher.js                      → Hybrid grounding engine, skills dictionary, experience gap analyzer,
+                                     prompt builder, think-tag stripping & JSON parser
+popup/
+  popup.html, popup.js, popup.css → Extension settings UI: AI engine selector, model discovery,
+                                     API key manager, resume profile tabs & scanning mode toggle
 ```
 
-Job results are cached per job ID in `chrome.storage.local` so revisiting
-a listing doesn't re-run the analysis. Saving a new resume clears the
-cache so everything gets re-scored.
-
-## Known limitations (read before relying on this)
-
-- **DOCX isn't supported.** Only PDF and plain text. Export your resume
-  to PDF or paste the text in.
-- **Drushim selectors are best-effort guesses**, not verified against a
-  live page — I built this without being able to inspect an authenticated
-  Drushim job page's real DOM. The extension falls back to a heuristic
-  ("grab the largest text block on the page") when the named selectors
-  don't match, which works reasonably but isn't precise. **To fix
-  properly:** open a real job listing, DevTools → Elements, find the
-  actual container for the job title and full description, and update
-  `TITLE_SELECTORS` / `DESC_SELECTORS` in `content/drushim.js`.
-- **LinkedIn selectors will drift over time** — LinkedIn changes its
-  class names periodically. The same fix applies: inspect, update
-  `content/linkedin.js`.
-- **On-device AI availability varies by machine** (Chrome version,
-  hardware, whether the model has been downloaded yet) — this is why the
-  keyword fallback exists at all, not an edge case to ignore.
-- The keyword matcher's accuracy depends on its skill dictionary. Add
-  field-specific terms via the popup's "Extra skills to track" box.
-
-## Extending later
-
-- **AllJobs support**: copy `content/drushim.js` as a template, add a
-  `content_scripts` entry in `manifest.json` for the AllJobs domain, and
-  set real selectors once you've inspected the DOM.
-- **Swap in a cloud LLM** instead of/alongside on-device AI: add the API
-  call in `background.js`'s `analyzeJob()`, gated behind an API key
-  stored via the popup — the message-passing structure doesn't need to
-  change, only where `analyzeJob` sources its `result` from.
-- **Element picker in the popup** ("click the job description on the
-  page to teach the extension where it is") would make the scrapers far
-  more robust to site redesigns than hardcoded selectors — worth doing
-  before this goes beyond personal use.
-
 ## Changelog
+
+### v0.11.1
+- **Extended Local LLM Timeout (180s / 3 minutes)**: Raised timeout in `callOpenAiCompat` and `callOllama` from 45s to 180s, preventing client disconnections while local reasoning models (like `Phi-4-reasoning-plus`, `DeepSeek-R1`, `Qwen`) generate thinking tokens.
+- **Reasoning Models Support**:
+  - Response parser extracts JSON from `message.content` and seamlessly falls back to `message.reasoning_content` if content is empty.
+  - Automatically strips `<think>...</think>` blocks prior to JSON decoding.
+  - Passes `max_tokens: 4096` to local completions.
+- **Multi-Tier Fallback Pipeline**:
+  - **Tier 1**: Chosen primary provider (LM Studio / Ollama / Gemini).
+  - **Tier 2 (Fallback 1)**: If primary provider fails or times out, immediately attempts on-device **Chrome Built-in Gemini Nano**.
+  - **Tier 3 (Fallback 2)**: If Gemini Nano is unavailable or disabled, safely falls back to **Offline Keyword Match**.
+- **Transparent Fallback Banners**: Displays an informative banner in the widget (`fallbackNote`) explaining why a fallback occurred.
+- **LM Studio Model Auto-Discovery**: Custom provider panel now discovers and auto-completes models directly from `/v1/models` with a `🔄` refresh button.
+
+### v0.11.0
+- **Google Gemini Cloud AI Integration**: Added official Gemini REST API support (`generativelanguage.googleapis.com`) using user-provided API keys with zero local hardware constraints.
+- **Model Selection**: Choose between `gemini-3.7-flash` (**Default**), `gemini-3.8-flash`, `gemini-3.5-flash-lite`, and `gemini-2.5-flash`.
+- **In-Popup Connection Test**: Instant ping validation for Gemini API keys and models with direct link to Google AI Studio.
+- **Enforced JSON Mode**: Requests sent with `responseMimeType: "application/json"` and `temperature: 0.1`.
+- **Strict Anti-Hallucination Grounding**: All Gemini outputs pass through JobMatch's hybrid anti-hallucination engine.
+- **Widget Engine Badge**: Displays `Gemini (<model>)` when Gemini Cloud is active.
+
+### v0.10.0
+- **Local AI Provider Support**: Direct connection to **Ollama** (`http://localhost:11434`) and OpenAI-compatible servers like **LM Studio** (`http://localhost:1234/v1`).
+- **AllJobs DOM & Scoping Fixes**:
+  - Scoped extraction to `#job-box-container<jobId>` to eliminate right-hand SEO sidebar and similar-jobs bleed.
+  - Cleaned titles removing breadcrumbs and leading "דרושים" strings.
+  - Added Hebrew experience parsing for "שנה ניסיון" (1 yr) and "שנתיים ניסיון" (2 yrs).
+  - Added Vue ecosystem skills (`Vue 3`, `Vuex`, `Pinia`, `Vue Router`, `SCSS`).
+
+### v0.9.0
+- **Support for AllJobs, Comeet & Greenhouse**: Added DOM adapters, URL gating, and scoped description extractors for `alljobs.co.il`, `comeet.com/jobs`, and `boards.greenhouse.io`.
+
+### v0.8.0
+- **360-Degree Feedback & Experience Gap Analysis**: Added Key Strengths, Gaps & Weaknesses, and automated Experience Gap Analysis (e.g. comparing 5+ years required vs 4 years detected).
+
+### v0.7.0
+- **On-Device Gemini AI Reliability Engine**: Added smart prompt budgeting, full 3,500-character resume preservation, and intelligent job trimming.
 
 ### v0.6.0 (Major Release)
 - **👥 Multiple Resume Profiles**:
