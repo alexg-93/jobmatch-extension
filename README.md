@@ -3,6 +3,28 @@
 Upload your resume once. See a match % and missing skills on LinkedIn and
 Drushim job listings as you browse.
 
+## Features
+
+- **🔒 100% Private On-Device AI**: Powered by Chrome's built-in Gemini Nano model (Prompt API / `LanguageModel`). Runs completely locally on your device — zero API keys, no network calls, and your resume never leaves your computer.
+- **⚡ Reliable Offline Fallback Matcher**: Seamless fallback engine with a built-in technical dictionary. If the AI model isn't active or downloaded yet on your Chrome browser, keyword matching provides instant scores and missing skill feedback.
+- **🌐 Native Support for LinkedIn & Drushim**:
+  - **LinkedIn**: Works across `/jobs/view/*`, search collections, and single-page app (SPA) navigations without re-scanning loops.
+  - **Drushim (דרושים)**: Optimized for Israeli tech jobs. Smartly targets individual job listings (`/job/*`) while ignoring search/catalog index pages.
+- **🔄 Auto & Manual Scanning Modes**:
+  - **Auto Mode**: Automatically evaluates job postings in the background as you browse.
+  - **Manual Mode**: Only analyzes when you want it to. Displays a discreet floating `✨ Scan Job` button on job pages.
+- **🖱️ Draggable Floating Trigger**: In manual mode, drag the `✨ Scan Job` button anywhere on your screen using the `⋮⋮` handle, or dismiss it with `×`. Positions clamp smoothly within viewport boundaries.
+- **🎯 Match Percentage & Missing Skills Badges**: Clean floating results card showing your overall match score, color-coded status, active engine badge (`on-device AI` or `keyword match`), and tag badges for required technologies missing from your resume.
+- **💡 Actionable Resume Suggestions**: Provides bulleted, targeted recommendations on which experiences, frameworks, or tools to highlight to pass ATS screening.
+- **🇮🇱 Hebrew & Unicode Support**: Built-in word boundary support for Hebrew characters and attached prefixes (`ב-`, `ה-`, `ו-`, `ל-`, `מ-`, `ש-`, `כ-`) common on Drushim (e.g. `ב-React`, `בניהול פרויקטים`).
+- **🔤 Skill Synonyms & Canonicalization**: Smart normalization for common variations (e.g. `React` ↔ `ReactJS`, `NodeJS` ↔ `Node.js`, `Golang` ↔ `Go`, `k8s` ↔ `Kubernetes`, `Postgres` ↔ `PostgreSQL`).
+- **📄 Easy Resume Upload & Local Cache**:
+  - Upload PDF directly (parsed on-device via bundled `pdf.js`) or paste plain text.
+  - Add custom skills to track in the popup.
+  - Interactive save button with loading spinner and double-click prevention.
+  - Smart per-job caching in `chrome.storage.local` with automatic invalidation when you update your resume.
+
+
 ## Install (unpacked, for development)
 
 1. Open `chrome://extensions`
