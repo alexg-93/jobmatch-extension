@@ -49,7 +49,7 @@ async function getResume() {
 }
 
 function cacheKey(url) {
-  return "cache:" + url;
+  return "cache:v2:" + url;
 }
 
 async function getCachedResult(url) {
@@ -70,23 +70,35 @@ async function analyzeJob({ url, title, description }) {
     return { engine: "none", error: "No resume uploaded yet. Click the extension icon to upload one." };
   }
 
-  // Try on-device AI first (free, private, no key) — fall back to the
-  // offline keyword matcher if the model isn't available or errors out.
+  // Always compute deterministic keyword match as ground-truth baseline
+  const fullJobText = `${title}\n${description}`;
+  const detMatch = self.JobMatch.keywordMatch(resume.text, fullJobText, resume.customSkills);
+
+  // Try on-device AI first (free, private, no key)
   let result = null;
   try {
     const aiResponse = await askOffscreen({
       type: "AI_MATCH_JOB",
       resumeText: resume.text,
       jobTitle: title,
-      jobText: description
+      jobText: description,
+      detectedJobSkills: detMatch.detectedJobSkills || []
     });
-    if (aiResponse?.ok) {
+    if (aiResponse?.ok && aiResponse.result) {
+      // Hybrid merge: merge AI qualitative missing skills with deterministic missing skills
+      const mergedMissing = self.JobMatch.mergeMissingSkills(
+        aiResponse.result.missingSkills || [],
+        detMatch.missingSkills || []
+      );
+
       result = {
         engine: "ai",
-        matchPercent: aiResponse.result.matchPercent ?? null,
-        missingSkills: aiResponse.result.missingSkills || [],
-        suggestions: aiResponse.result.suggestions || [],
-        matchedSkills: []
+        matchPercent: typeof aiResponse.result.matchPercent === "number" ? aiResponse.result.matchPercent : (detMatch.matchPercent ?? null),
+        missingSkills: mergedMissing,
+        suggestions: (Array.isArray(aiResponse.result.suggestions) && aiResponse.result.suggestions.length)
+          ? aiResponse.result.suggestions
+          : detMatch.suggestions,
+        matchedSkills: detMatch.matchedSkills || []
       };
     }
   } catch (e) {
@@ -94,7 +106,7 @@ async function analyzeJob({ url, title, description }) {
   }
 
   if (!result) {
-    result = self.JobMatch.keywordMatch(resume.text, `${title}\n${description}`, resume.customSkills);
+    result = detMatch;
   }
 
   await setCachedResult(url, result);

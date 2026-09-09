@@ -107,6 +107,17 @@ cache so everything gets re-scored.
 
 ## Changelog
 
+### v0.2.1
+
+#### Missing Keywords & Hybrid Engine Improvements
+- **Hybrid Matching Engine**: Replaced the previous binary "either AI or Keyword" architecture with a hybrid approach. Even when Chrome's on-device Gemini Nano model runs, deterministic keyword extraction runs in parallel as a ground-truth baseline, merging AI's qualitative findings with deterministic missing skills so critical gaps (like `SQL`, `PostgreSQL`, `MongoDB`) are never missed.
+- **AI Prompt Seeding**: Automatically extracts and feeds detected job technologies directly into the on-device AI prompt, prompting Gemini Nano to audit all key technical domains (Databases, Languages, Cloud, Queues).
+- **Expanded Technical Dictionary**: Added comprehensive coverage for databases (`SQL`, `SQL Server`, `T-SQL`, `NoSQL`, `PostgreSQL`, `MongoDB`, `Redis`, `Elasticsearch`, `SQLite`, `Oracle`, `DynamoDB`), messaging queues (`RabbitMQ`, `Kafka`, `SQS`, `SNS`), frameworks (`.NET`, `.NET Core`, `ASP.NET`, `Entity Framework`, `LINQ`), dev tools (`Storybook`, `GitHub Copilot`, `Cursor AI`), and architecture (`Microservices`, `REST API`, `OOP`, `SOLID`).
+- **Standardized Display Names**: Added clean acronym and capitalization mapping (e.g. `SQL`, `PostgreSQL`, `MongoDB`, `RabbitMQ`, `C#`, `.NET`, `REST API`).
+- **Priority-Based Skill Sorting**: Missing skills are sorted by technical domain hierarchy so critical requirements (Databases, Languages, Frameworks) appear first.
+- **Fixed Boundary Overlap for 'C'**: Fixed a regex boundary issue where the letter `'C'` would falsely match inside `'C#'` or `'C++'`.
+- **Cache v2 Invalidation**: Updated cache keying to `cache:v2:` so legacy cached results without SQL are automatically invalidated.
+
 ### v0.2.0
 
 #### New Features
