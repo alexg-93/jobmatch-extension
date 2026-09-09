@@ -224,7 +224,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   try {
     await ensureProfilesMigrated();
     const all = await chrome.storage.local.get(null);
-    const staleKeys = Object.keys(all).filter((k) => k.startsWith("cache:v1:") || k.startsWith("cache:v2:"));
+    const staleKeys = Object.keys(all).filter((k) => k.startsWith("cache:v1:") || k.startsWith("cache:v2:") || k.startsWith("cache:v3:"));
     if (staleKeys.length) await chrome.storage.local.remove(staleKeys);
   } catch (e) {
     // ignore
@@ -232,7 +232,7 @@ chrome.runtime.onInstalled.addListener(async () => {
 });
 
 function cacheKey(url, profileId) {
-  return `cache:v3:${profileId || "default"}:${url}`;
+  return `cache:v4:${profileId || "default"}:${url}`;
 }
 
 async function getCachedResult(url, profileId) {

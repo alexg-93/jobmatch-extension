@@ -389,6 +389,31 @@
     return result;
   }
 
+  function enrichBareSkillToSuggestion(term) {
+    const formatted = formatSkill(term);
+    const lower = term.toLowerCase().trim();
+
+    if (lower.includes("sql") || lower.includes("db") || lower.includes("mongo") || lower.includes("postgres")) {
+      return `Explicitly detail your hands-on database experience with ${formatted} (queries, schema design, data modeling) in your recent project descriptions.`;
+    }
+    if (lower.includes("c#") || lower.includes(".net")) {
+      return `Emphasize your background developing scalable backend services, APIs, and microservices using ${formatted}.`;
+    }
+    if (lower.includes("azure") || lower.includes("aws") || lower.includes("gcp") || lower.includes("cloud")) {
+      return `Highlight your cloud infrastructure, deployment pipelines, or DevOps management experience with ${formatted}.`;
+    }
+    if (lower.includes("microservice") || lower.includes("rest api") || lower.includes("api")) {
+      return `Detail your experience designing and maintaining scalable ${formatted} architectures and endpoints.`;
+    }
+    if (lower.includes("react") || lower.includes("native") || lower.includes("mobile") || lower.includes("frontend")) {
+      return `Showcase production applications you have shipped using ${formatted}, including app store releases or key UI components.`;
+    }
+    if (lower.includes("ci/cd") || lower.includes("git")) {
+      return `Highlight your daily workflow practices using ${formatted} for reliable production releases.`;
+    }
+    return `Explicitly mention your practical experience with ${formatted} — it is called out as a key qualification in this job listing.`;
+  }
+
   function filterGroundedSuggestions(aiSuggestions, fullJobText, discardedSkills, fallbackSuggestions) {
     if (!Array.isArray(aiSuggestions) || !aiSuggestions.length) {
       return fallbackSuggestions || [];
@@ -396,36 +421,51 @@
 
     const discardedLower = (discardedSkills || []).map((s) => s.toLowerCase().trim());
 
-    const valid = aiSuggestions.filter((sug) => {
-      const sugText = (sug || "").trim();
-      if (!sugText) return false;
+    const processed = [];
+    for (const rawSug of aiSuggestions) {
+      const sugText = (rawSug || "").trim();
+      if (!sugText) continue;
 
       // If suggestion explicitly mentions one of the discarded/hallucinated skills, reject it
+      let isDiscarded = false;
       for (const disc of discardedLower) {
         if (disc.length >= 2) {
           const regex = new RegExp("\\b" + escapeRegex(disc) + "\\b", "i");
           if (regex.test(sugText)) {
-            return false;
+            isDiscarded = true;
+            break;
           }
         }
       }
+      if (isDiscarded) continue;
 
       // Check common tech hallucinations not in job (Go, Kubernetes, AWS, GCP, Azure, Russian, etc.)
       const techChecks = ["kubernetes", "k8s", "aws", "gcp", "azure", "docker", "golang", "go", "russian"];
+      let hasUngroundedTech = false;
       for (const tech of techChecks) {
         const regex = new RegExp("\\b" + escapeRegex(tech) + "\\b", "i");
         if (regex.test(sugText)) {
           if (!isSkillGroundedInJob(tech, fullJobText)) {
-            return false;
+            hasUngroundedTech = true;
+            break;
           }
         }
       }
+      if (hasUngroundedTech) continue;
 
-      return true;
-    });
+      // DETECT BARE KEYWORDS:
+      // If the AI returned just a bare skill name (<= 3 words, e.g. "C#", ".NET Core", "SQL"),
+      // enrich it into a detailed, actionable coaching sentence instead of displaying raw keyword duplicate!
+      const words = sugText.split(/\s+/).filter(Boolean);
+      if (words.length <= 3) {
+        processed.push(enrichBareSkillToSuggestion(sugText));
+      } else {
+        processed.push(sugText);
+      }
+    }
 
-    if (valid.length >= 2) return valid.slice(0, 5);
-    const combined = [...valid, ...(fallbackSuggestions || [])];
+    if (processed.length >= 2) return processed.slice(0, 5);
+    const combined = [...processed, ...(fallbackSuggestions || [])];
     const unique = [];
     const seen = new Set();
     for (const s of combined) {
@@ -507,7 +547,7 @@
       : "";
 
     return [
-      "You are a resume-to-job matching assistant. Compare the RESUME to the JOB POSTING.",
+      "You are an expert resume-to-job matching assistant. Compare the RESUME to the JOB POSTING.",
       "Respond with ONLY valid JSON, no markdown fences, no commentary, in this exact shape:",
       '{"matchPercent": <integer 0-100>, "missingSkills": [<string>, ...max 10], "suggestions": [<string>, ...max 5]}',
       "matchPercent reflects how well the resume's skills/experience fit this specific job.",
@@ -516,7 +556,12 @@
       "1. STRICT FACTUAL GROUNDING: ONLY include skills in missingSkills that are EXPLICITLY written or required in the JOB POSTING text.",
       "2. NEVER invent, assume, or hallucinate skills (e.g. do NOT suggest Go, Kubernetes, AWS, Docker, or languages unless the job explicitly wrote them).",
       "3. If the candidate's resume already covers the required technologies, missingSkills should be an empty list [].",
-      "4. suggestions must ONLY focus on bridging requirements and technologies explicitly stated in this specific job posting.",
+      "",
+      "SUGGESTIONS REQUIREMENTS (CRITICAL):",
+      "- Each item in 'suggestions' MUST be a full, detailed, actionable coaching sentence (at least 8-20 words) advising HOW to edit or position the resume for this job.",
+      "- Example of a GOOD suggestion: 'Emphasize your background building backend services and REST APIs with C# and .NET to match this core requirement.'",
+      "- Example of a BAD suggestion: 'C#' or 'SQL' or '.NET' (NEVER output bare skill names as suggestions).",
+      "- If suggesting experience with a required tool, provide concrete advice on where or how to highlight it on the resume.",
       detectedSkillsText,
       `JOB TITLE: ${jobTitle || "(untitled)"}`,
       `JOB POSTING:\n${trimmedJob}`,
