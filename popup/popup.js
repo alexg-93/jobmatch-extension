@@ -26,17 +26,133 @@ function setStatus(msg, isError) {
   el.className = isError ? "status status--error" : "status";
 }
 
-async function loadExisting() {
-  const resumeResp = await sendMessage({ type: "GET_RESUME" });
-  const resume = resumeResp?.resume;
-  if (resume && resume.text) {
-    $("resumeText").value = resume.text;
+let profiles = [];
+let activeProfileId = null;
+let selectedProfileId = null;
+let isProcessing = false;
+
+function setButtonsDisabled(disabled) {
+  $("saveBtn").disabled = disabled;
+  $("clearBtn").disabled = disabled;
+  $("resumeFile").disabled = disabled;
+  $("setActiveBtn").disabled = disabled;
+  $("deleteProfileBtn").disabled = disabled || profiles.length <= 1;
+}
+
+function getSelectedProfile() {
+  return profiles.find((p) => p.id === selectedProfileId) || profiles[0] || null;
+}
+
+function renderProfilesUI() {
+  const tabsContainer = $("profilesTabs");
+  tabsContainer.innerHTML = "";
+
+  profiles.forEach((p) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "profile-tab" + (p.id === selectedProfileId ? " active" : "");
+    const isAct = p.id === activeProfileId;
+    btn.innerHTML = `${escapeHtml(p.name)} ${isAct ? '<span class="tab-star" title="Active default profile">★</span>' : ""}`;
+    btn.addEventListener("click", () => {
+      if (isProcessing || p.id === selectedProfileId) return;
+      selectedProfileId = p.id;
+      populateSelectedProfile();
+    });
+    tabsContainer.appendChild(btn);
+  });
+
+  if (profiles.length < 3) {
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "profile-tab-add";
+    addBtn.textContent = "+ Add Profile";
+    addBtn.addEventListener("click", async () => {
+      if (isProcessing || profiles.length >= 3) return;
+      await createNewProfile();
+    });
+    tabsContainer.appendChild(addBtn);
+  }
+
+  $("profilesCount").textContent = `${profiles.length}/3`;
+
+  const curr = getSelectedProfile();
+  if (curr) {
+    $("profileNameInput").value = curr.name || "";
+    const isCurrActive = curr.id === activeProfileId;
+    const actBtn = $("setActiveBtn");
+    actBtn.className = "btn btn-tiny btn-active-toggle" + (isCurrActive ? " is-active" : "");
+    actBtn.textContent = isCurrActive ? "★ Active" : "☆ Set Active";
+    actBtn.title = isCurrActive ? "This is your active default profile" : "Set this profile as default active";
+
+    $("deleteProfileBtn").disabled = profiles.length <= 1;
+  }
+}
+
+function populateSelectedProfile() {
+  renderProfilesUI();
+  const curr = getSelectedProfile();
+  if (!curr) return;
+
+  $("resumeText").value = curr.text || "";
+  $("customSkills").value = (curr.customSkills || []).join(", ");
+  if (curr.text) {
     $("resumeInfo").textContent =
-      `Saved resume: ${resume.text.length} characters, ${resume.skills?.length || 0} detected skills` +
-      (resume.savedAt ? ` · saved ${new Date(resume.savedAt).toLocaleString()}` : "");
-    $("customSkills").value = (resume.customSkills || []).join(", ");
+      `Profile "${curr.name}": ${curr.text.length} chars, ${curr.skills?.length || 0} skills` +
+      (curr.savedAt ? ` · saved ${new Date(curr.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : "");
   } else {
-    $("resumeInfo").textContent = "No resume saved yet.";
+    $("resumeInfo").textContent = `Profile "${curr.name}" is empty. Upload or paste resume text below.`;
+  }
+}
+
+async function createNewProfile() {
+  const nextNum = profiles.length + 1;
+  const defaultName = nextNum === 2 ? "Frontend Specialist" : nextNum === 3 ? "Team Lead" : `Profile ${nextNum}`;
+  isProcessing = true;
+  setButtonsDisabled(true);
+  setStatus("Creating new profile…");
+  try {
+    const res = await sendMessage({
+      type: "SAVE_PROFILE",
+      payload: {
+        name: defaultName,
+        text: "",
+        skills: [],
+        customSkills: []
+      }
+    });
+    if (res?.ok) {
+      profiles = res.profiles;
+      selectedProfileId = res.savedProfile?.id || profiles[profiles.length - 1].id;
+      activeProfileId = res.activeProfileId;
+      populateSelectedProfile();
+      setStatus(`Created profile "${defaultName}". Upload a resume for this profile.`);
+      $("profileNameInput").focus();
+    } else {
+      setStatus(res?.error || "Failed to create profile", true);
+    }
+  } catch (err) {
+    setStatus("Error creating profile: " + err.message, true);
+  } finally {
+    isProcessing = false;
+    setButtonsDisabled(false);
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str == null ? "" : String(str);
+  return div.innerHTML;
+}
+
+async function loadExisting() {
+  const profilesResp = await sendMessage({ type: "GET_PROFILES" });
+  if (profilesResp?.ok && Array.isArray(profilesResp.profiles)) {
+    profiles = profilesResp.profiles;
+    activeProfileId = profilesResp.activeProfileId;
+    if (!selectedProfileId || !profiles.some((p) => p.id === selectedProfileId)) {
+      selectedProfileId = activeProfileId || profiles[0]?.id;
+    }
+    populateSelectedProfile();
   }
 
   const availabilityResp = await sendMessage({ type: "GET_AI_AVAILABILITY" });
@@ -78,13 +194,60 @@ document.querySelectorAll("#scanModeToggle .mode-btn").forEach((btn) => {
   });
 });
 
-let isProcessing = false;
+$("profileNameInput").addEventListener("change", async () => {
+  const curr = getSelectedProfile();
+  if (!curr) return;
+  const newName = $("profileNameInput").value.trim();
+  if (!newName || newName === curr.name) return;
 
-function setButtonsDisabled(disabled) {
-  $("saveBtn").disabled = disabled;
-  $("clearBtn").disabled = disabled;
-  $("resumeFile").disabled = disabled;
-}
+  curr.name = newName;
+  await sendMessage({
+    type: "SAVE_PROFILE",
+    payload: { id: curr.id, name: newName, text: curr.text, skills: curr.skills, customSkills: curr.customSkills }
+  });
+  renderProfilesUI();
+  setStatus(`Profile renamed to "${newName}".`);
+});
+
+$("setActiveBtn").addEventListener("click", async () => {
+  const curr = getSelectedProfile();
+  if (!curr || curr.id === activeProfileId) return;
+
+  const res = await sendMessage({ type: "SET_ACTIVE_PROFILE", payload: { profileId: curr.id } });
+  if (res?.ok) {
+    activeProfileId = curr.id;
+    renderProfilesUI();
+    setStatus(`"${curr.name}" is now your default active profile.`);
+  }
+});
+
+$("deleteProfileBtn").addEventListener("click", async () => {
+  const curr = getSelectedProfile();
+  if (!curr || profiles.length <= 1) return;
+
+  if (!confirm(`Delete profile "${curr.name}"? This cannot be undone.`)) return;
+
+  isProcessing = true;
+  setButtonsDisabled(true);
+  setStatus("Deleting profile…");
+  try {
+    const res = await sendMessage({ type: "DELETE_PROFILE", payload: { profileId: curr.id } });
+    if (res?.ok) {
+      profiles = res.profiles;
+      activeProfileId = res.activeProfileId;
+      selectedProfileId = activeProfileId;
+      populateSelectedProfile();
+      setStatus(`Deleted profile. Active profile is now "${getSelectedProfile()?.name}".`);
+    } else {
+      setStatus(res?.error || "Could not delete profile", true);
+    }
+  } catch (err) {
+    setStatus("Error deleting profile: " + err.message, true);
+  } finally {
+    isProcessing = false;
+    setButtonsDisabled(false);
+  }
+});
 
 $("resumeFile").addEventListener("change", async (e) => {
   const file = e.target.files[0];
@@ -102,7 +265,7 @@ $("resumeFile").addEventListener("change", async (e) => {
       text = await file.text();
     }
     $("resumeText").value = text;
-    setStatus(`Loaded ${file.name} (${text.length} characters). Review below, then Save.`);
+    setStatus(`Loaded ${file.name} (${text.length} characters). Review below, then click Save.`);
   } catch (err) {
     setStatus("Couldn't read that file: " + err.message, true);
   } finally {
@@ -120,6 +283,11 @@ $("saveBtn").addEventListener("click", async () => {
     return;
   }
 
+  const curr = getSelectedProfile();
+  if (!curr) return;
+
+  const name = $("profileNameInput").value.trim() || curr.name;
+
   isProcessing = true;
   setButtonsDisabled(true);
   const saveBtn = $("saveBtn");
@@ -127,14 +295,30 @@ $("saveBtn").addEventListener("click", async () => {
 
   try {
     const customSkills = $("customSkills").value.split(",").map((s) => s.trim()).filter(Boolean);
-    setStatus("Extracting skills…");
+    setStatus("Extracting skills for profile…");
     const skillResp = await sendMessage({ type: "EXTRACT_SKILLS", payload: { resumeText: text, customSkills } });
     const skills = skillResp?.skills || [];
 
-    const resume = { text, skills, customSkills, savedAt: Date.now() };
-    await sendMessage({ type: "SAVE_RESUME", payload: resume });
-    setStatus(`Saved. Detected ${skills.length} skills. Cached job results were cleared so they'll be re-scored against this resume.`);
-    await loadExisting();
+    const saveResp = await sendMessage({
+      type: "SAVE_PROFILE",
+      payload: {
+        id: curr.id,
+        name,
+        text,
+        skills,
+        customSkills
+      }
+    });
+
+    if (saveResp?.ok) {
+      profiles = saveResp.profiles;
+      activeProfileId = saveResp.activeProfileId;
+      selectedProfileId = curr.id;
+      setStatus(`Saved profile "${name}". Detected ${skills.length} skills. Cached results for this profile were refreshed.`);
+      populateSelectedProfile();
+    } else {
+      setStatus(saveResp?.error || "Error saving profile", true);
+    }
   } catch (err) {
     setStatus("Error saving resume: " + (err?.message || err), true);
   } finally {
@@ -146,11 +330,17 @@ $("saveBtn").addEventListener("click", async () => {
 
 $("clearBtn").addEventListener("click", async () => {
   if (isProcessing) return;
-  await sendMessage({ type: "SAVE_RESUME", payload: { text: "", skills: [], customSkills: [] } });
+  const curr = getSelectedProfile();
+  if (!curr) return;
+
+  await sendMessage({
+    type: "SAVE_PROFILE",
+    payload: { id: curr.id, name: curr.name, text: "", skills: [], customSkills: [] }
+  });
   $("resumeFile").value = "";
   $("resumeText").value = "";
   $("customSkills").value = "";
-  setStatus("Resume cleared.");
+  setStatus(`Cleared resume text for profile "${curr.name}".`);
   loadExisting();
 });
 

@@ -101,6 +101,45 @@
 
 #jobmatch-widget-root .jm-close:hover { color: #374151; }
 
+#jobmatch-widget-root .jm-profile-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f3f4f6;
+  padding: 4px 8px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+#jobmatch-widget-root .jm-profile-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+#jobmatch-widget-root .jm-profile-select {
+  font-size: 11px;
+  font-weight: 600;
+  color: #1f2937;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+  flex: 1;
+  outline: none;
+}
+
+#jobmatch-widget-root .jm-profile-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: #4f46e5;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
 #jobmatch-widget-root .jm-score-row {
   display: flex;
   align-items: baseline;

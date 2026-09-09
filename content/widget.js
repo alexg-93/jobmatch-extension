@@ -58,7 +58,7 @@
     root.querySelector(".jm-close")?.addEventListener("click", () => (root.style.display = "none"));
   }
 
-  function renderResult(result) {
+  function renderResult(result, onProfileSwitch) {
     const root = ensureRoot();
     root.style.display = "block";
     const pct = result.matchPercent;
@@ -67,6 +67,9 @@
     const suggestions = result.suggestions || [];
     const engineLabel = result.engine === "ai" ? "on-device AI" : result.engine === "keyword" ? "keyword match" : "";
     const jobTitle = result.jobTitle || "";
+    const profiles = result.profiles || [];
+    const activeProfileId = result.activeProfileId || result.profileId;
+    const hasMultipleProfiles = profiles.length > 1;
 
     root.innerHTML = `
       <div class="jm-panel">
@@ -77,6 +80,22 @@
           </div>
           <button class="jm-close" title="Dismiss">×</button>
         </div>
+        ${hasMultipleProfiles ? `
+          <div class="jm-profile-bar">
+            <span class="jm-profile-label">CV:</span>
+            <select class="jm-profile-select" title="Switch resume profile">
+              ${profiles.map((p) => `
+                <option value="${escapeHtml(p.id)}" ${p.id === activeProfileId ? "selected" : ""}>
+                  ${escapeHtml(p.name)}${!p.hasResume ? " (empty)" : ""}
+                </option>
+              `).join("")}
+            </select>
+          </div>
+        ` : (result.profileName && result.profileName !== "Primary Profile" ? `
+          <div class="jm-profile-bar">
+            <span class="jm-profile-tag">${escapeHtml(result.profileName)}</span>
+          </div>
+        ` : "")}
         <div class="jm-score-row">
           <div class="jm-score" style="color:${colorForPercent(pct)}">${pctLabel}</div>
           <div class="jm-score-label">match${engineLabel ? ` · ${engineLabel}` : ""}</div>
@@ -97,7 +116,14 @@
             </ul>
           </div>` : ""}
       </div>`;
+
     root.querySelector(".jm-close")?.addEventListener("click", () => (root.style.display = "none"));
+
+    if (hasMultipleProfiles && typeof onProfileSwitch === "function") {
+      root.querySelector(".jm-profile-select")?.addEventListener("change", (e) => {
+        onProfileSwitch(e.target.value);
+      });
+    }
   }
 
   function escapeHtml(str) {

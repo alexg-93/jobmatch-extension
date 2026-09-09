@@ -21,11 +21,12 @@ Drushim job listings as you browse.
 - **🇮🇱 Hebrew & Unicode Support**: Built-in word boundary support for Hebrew characters and attached prefixes (`ב-`, `ה-`, `ו-`, `ל-`, `מ-`, `ש-`, `כ-`) common on Drushim (e.g. `ב-React`, `בניהול פרויקטים`).
 - **🔤 Skill Synonyms & Canonicalization**: Smart normalization for common variations (e.g. `React` ↔ `ReactJS`, `NodeJS` ↔ `Node.js`, `Golang` ↔ `Go`, `k8s` ↔ `Kubernetes`, `Postgres` ↔ `PostgreSQL`, `Rabbit MQ` ↔ `RabbitMQ`).
 - **🛡️ Robust Extension Lifecycle**: Gracefully handles extension updates and reloads in `chrome://extensions` with automatic timer teardown, preventing context invalidation errors.
+- **👥 Multiple Resume Profiles**: Save and switch between up to 3 targeted resume profiles (e.g. *Full Stack Developer*, *Frontend Specialist*, *Team Lead*). Compare match percentages directly on the job page with an instant profile switcher dropdown.
 - **📄 Easy Resume Upload & Local Cache**:
-  - Upload PDF directly (parsed on-device via bundled `pdf.js`) or paste plain text.
+  - Upload PDF directly (parsed on-device via bundled `pdf.js`) or paste plain text for each profile.
   - Add custom skills to track in the popup.
   - Interactive save button with loading spinner and double-click prevention.
-  - Versioned per-job caching (`cache:v2:`) in `chrome.storage.local` with automatic cache invalidation when updating your resume.
+  - Profile-scoped per-job caching (`cache:v3:<profileId>:<url>`) in `chrome.storage.local` with automatic cache invalidation when updating a profile.
 
 
 ## Install (unpacked, for development)
@@ -33,17 +34,16 @@ Drushim job listings as you browse.
 1. Open `chrome://extensions`
 2. Enable **Developer mode** (top right)
 3. Click **Load unpacked** → select this folder
-4. Click the JobMatch icon in the toolbar → upload/paste your resume → **Save resume**
-5. Browse a job on `linkedin.com/jobs/view/...` or `drushim.co.il/job/...` — a panel appears bottom-right
+4. Click the JobMatch icon in the toolbar → manage profiles, upload/paste resumes → **Save resume**
+5. Browse a job on `linkedin.com/jobs/view/...` or `drushim.co.il/job/...` — a panel appears bottom-right with an instant profile switcher dropdown
 
 ## How matching works
 
-JobMatch uses a **Hybrid Matching Architecture** combining deterministic ground truth with on-device generative AI:
-
-1. **Deterministic Baseline**: A high-coverage skills dictionary (`shared/matcher.js`) scans the job listing for required technologies across Databases (SQL, NoSQL, PostgreSQL, MongoDB, Redis), Languages & Frameworks (.NET, C#, Python, React), Messaging (RabbitMQ, Kafka), and Cloud/DevOps.
-2. **AI Prompt Seeding**: Detected technologies are fed directly into Chrome's built-in **Gemini Nano** model (Prompt API / `LanguageModel` running inside a hidden offscreen page) to guide its attention across all technical categories.
-3. **Smart Merge & Deduplication**: The AI's qualitative findings (fit percentage, tailored suggestions) are merged with deterministic missing skills. Critical requirements are sorted by domain priority (Databases & Languages first) and presented with clean acronym capitalization (`SQL`, `PostgreSQL`, `RabbitMQ`, `C#`, `.NET`).
-4. **Offline Fallback**: If on-device AI isn't available or downloading, the extension smoothly falls back to the deterministic keyword engine — you will always get an instant match score and missing skills list.
+### Hybrid Matching Engine (v0.3.0+)
+JobMatch runs a dual-layer matching process on every job view:
+1. **Deterministic Ground-Truth Layer**: A comprehensive tech dictionary extracts exact technologies, cloud providers, databases, and message brokers from both the resume and the job listing.
+2. **On-Device AI Layer (Chrome Gemini Nano)**: Analyzes semantic requirements, seniority level, and contextual qualifications.
+3. **Strict Grounding & Merging**: Discards AI hallucinations, preserves exact technical gaps (like SQL, PostgreSQL, Docker), and formats acronyms cleanly.
 
 ## Architecture
 
@@ -100,6 +100,14 @@ cache so everything gets re-scored.
   before this goes beyond personal use.
 
 ## Changelog
+
+### v0.6.0 (Major Release)
+- **👥 Multiple Resume Profiles**:
+  - Save and manage up to 3 distinct resume profiles (e.g. *Full Stack Developer*, *Frontend Specialist*, *Team Lead*) directly in the popup.
+  - Quick profile tabs, inline profile renaming, active default star indicator, and deletion safety guards.
+- **⚡ Floating Widget Profile Switcher**: Added an on-the-fly profile selector dropdown inside the floating job widget on LinkedIn and Drushim. Switch between CV profiles instantly to see which version scores higher for any specific job posting.
+- **🔒 Profile-Scoped Caching**: Analysis results are cached per profile and URL (`cache:v3:<profileId>:<url>`), allowing instant switching between profiles on the same job with zero latency.
+- **🔄 Seamless Backward Compatibility**: Automatically migrates existing single-resume storage into a "Primary Profile" on first run, while keeping legacy storage keys in sync for uninterrupted third-party script support.
 
 ### v0.5.0 (Major Release)
 - **Anti-Hallucination Grounding Engine**: Added strict job-posting grounding validation (`isSkillGroundedInJob`) for AI-detected missing skills and suggestions. Missing skills returned by the on-device model that do not appear anywhere in the job posting are automatically identified as hallucinations and discarded.

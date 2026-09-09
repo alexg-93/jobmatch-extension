@@ -92,7 +92,7 @@ try {
   // context invalidated
 }
 
-function analyze(job, key) {
+function analyze(job, key, profileId = null) {
   if (!chrome.runtime?.id) {
     if (tickInterval) clearInterval(tickInterval);
     window.JobMatchWidget?.renderError?.("Extension updated. Please refresh the page.");
@@ -104,7 +104,7 @@ function analyze(job, key) {
 
   try {
     chrome.runtime.sendMessage(
-      { type: "ANALYZE_JOB", payload: { url: key, title: job.title, description: job.description } },
+      { type: "ANALYZE_JOB", payload: { url: key, title: job.title, description: job.description, profileId } },
       (result) => {
         isAnalyzing = false;
         if (!chrome.runtime?.id || chrome.runtime.lastError) {
@@ -129,7 +129,9 @@ function analyze(job, key) {
         }
 
         analyzedJobKey = key;
-        window.JobMatchWidget.renderResult(result);
+        window.JobMatchWidget.renderResult(result, (newProfileId) => {
+          analyze(job, key, newProfileId);
+        });
       }
     );
   } catch (err) {
@@ -204,7 +206,7 @@ function tick() {
 
 chrome.storage?.onChanged?.addListener((changes, area) => {
   if (area === "local") {
-    if (changes.resume) {
+    if (changes.resume || changes.activeProfileId || changes.profiles) {
       analyzedJobKey = null;
       tick();
     }

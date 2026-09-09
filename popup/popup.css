@@ -38,6 +38,151 @@ h1 {
   padding: 8px 10px;
 }
 
+.profiles-section {
+  margin-bottom: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.profiles-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.profiles-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: #6b7280;
+  background: #e5e7eb;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.profiles-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 8px;
+}
+
+.profile-tab {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.profile-tab:hover {
+  background: #f3f4f6;
+}
+
+.profile-tab.active {
+  background: #4f46e5;
+  color: #ffffff;
+  border-color: #4f46e5;
+  font-weight: 600;
+}
+
+.profile-tab .tab-star {
+  color: #f59e0b;
+}
+
+.profile-tab.active .tab-star {
+  color: #fde047;
+}
+
+.profile-tab-add {
+  border: 1px dashed #9ca3af;
+  background: transparent;
+  color: #4b5563;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.profile-tab-add:hover {
+  background: #e5e7eb;
+}
+
+.profile-toolbar {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  background: #ffffff;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.profile-name-col {
+  flex: 1;
+}
+
+.field-label-small {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 2px;
+}
+
+.profile-name-input {
+  font-size: 11px;
+  padding: 4px 6px;
+}
+
+.profile-actions-col {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-tiny {
+  padding: 5px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.btn-active-toggle {
+  background: #ffffff;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.btn-active-toggle.is-active {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #10b981;
+}
+
+.btn-danger {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
+.btn-danger:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .mode-header {
   display: flex;
   justify-content: space-between;
