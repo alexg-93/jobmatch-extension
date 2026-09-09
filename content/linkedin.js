@@ -82,48 +82,71 @@ let analyzedJobKey = null;
 let isAnalyzing = false;
 let dismissedManualKey = null;
 let scanMode = "auto";
+let tickInterval = null;
 
-chrome.storage?.local?.get("scanMode", (data) => {
-  if (data?.scanMode) scanMode = data.scanMode;
-});
+try {
+  chrome.storage?.local?.get("scanMode", (data) => {
+    if (data?.scanMode) scanMode = data.scanMode;
+  });
+} catch (e) {
+  // context invalidated
+}
 
 function analyze(job, key) {
+  if (!chrome.runtime?.id) {
+    if (tickInterval) clearInterval(tickInterval);
+    window.JobMatchWidget?.renderError?.("Extension updated. Please refresh the page.");
+    return;
+  }
+
   isAnalyzing = true;
   window.JobMatchWidget.renderLoading(job.title);
-  chrome.runtime.sendMessage(
-    { type: "ANALYZE_JOB", payload: { url: key, title: job.title, description: job.description } },
-    (result) => {
-      isAnalyzing = false;
-      if (chrome.runtime.lastError) {
-        // If extension was reloaded or disconnected, prevent infinite error loops
-        analyzedJobKey = key;
-        window.JobMatchWidget.renderError("Extension disconnected. Please reload the page.");
-        return;
-      }
-      // Stale response from an earlier job switch
-      if (currentJobKey !== key) return;
 
-      if (!result) {
-        analyzedJobKey = key;
-        window.JobMatchWidget.renderError("No response from extension — try reloading the page.");
-        return;
-      }
-      if (result.error) {
-        // Allow re-try if no resume uploaded yet
-        if (result.engine !== "none") {
+  try {
+    chrome.runtime.sendMessage(
+      { type: "ANALYZE_JOB", payload: { url: key, title: job.title, description: job.description } },
+      (result) => {
+        isAnalyzing = false;
+        if (!chrome.runtime?.id || chrome.runtime.lastError) {
           analyzedJobKey = key;
+          window.JobMatchWidget?.renderError?.("Extension updated. Please refresh the page.");
+          if (tickInterval) clearInterval(tickInterval);
+          return;
         }
-        window.JobMatchWidget.renderError(result.error);
-        return;
-      }
+        // Stale response from an earlier job switch
+        if (currentJobKey !== key) return;
 
-      analyzedJobKey = key;
-      window.JobMatchWidget.renderResult(result);
-    }
-  );
+        if (!result) {
+          analyzedJobKey = key;
+          window.JobMatchWidget.renderError("No response from extension — try reloading the page.");
+          return;
+        }
+        if (result.error) {
+          // Allow re-try if no resume uploaded yet
+          if (result.engine !== "none") {
+            analyzedJobKey = key;
+          }
+          window.JobMatchWidget.renderError(result.error);
+          return;
+        }
+
+        analyzedJobKey = key;
+        window.JobMatchWidget.renderResult(result);
+      }
+    );
+  } catch (err) {
+    isAnalyzing = false;
+    if (tickInterval) clearInterval(tickInterval);
+    window.JobMatchWidget?.renderError?.("Extension updated. Please refresh the page.");
+  }
 }
 
 function tick() {
+  if (!chrome.runtime?.id) {
+    if (tickInterval) clearInterval(tickInterval);
+    return;
+  }
+
   if (!isSpecificJobPage()) {
     window.JobMatchWidget?.hide?.();
     window.JobMatchWidget?.hideManualButton?.();
@@ -192,7 +215,7 @@ chrome.storage?.onChanged?.addListener((changes, area) => {
   }
 });
 
-setInterval(tick, 1500);
+tickInterval = setInterval(tick, 1500);
 tick();
 
 

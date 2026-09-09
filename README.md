@@ -107,6 +107,9 @@ cache so everything gets re-scored.
 
 ## Changelog
 
+### v0.4.1
+- **Fixed Extension Context Invalidation Handling**: Wrapped `chrome.runtime.sendMessage` and background checks in `content/drushim.js` and `content/linkedin.js` with `try...catch` and `!chrome.runtime?.id` guards. Automatically clears polling intervals and prevents uncaught errors when the extension is reloaded or updated in `chrome://extensions` while job tabs are open.
+
 ### v0.4.0 (Major Release)
 - **Restricted LinkedIn Scanning to Standalone Job Postings**: Gated LinkedIn analysis strictly to individual job pages (`https://www.linkedin.com/jobs/view/*`). Multi-job search panels (`/jobs/search-results/*`, `/jobs/search/*`, `/jobs/collections/*`) are now automatically excluded to prevent scanning entire search result lists.
 - **Scanned Job Title Displayed in Header**: Added the scanned job title directly below the "JobMatch" title in the results panel header (and during loading), giving clear visibility into which specific job was analyzed.
