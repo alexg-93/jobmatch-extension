@@ -77,7 +77,7 @@ async function getAiSettings() {
   };
 }
 
-async function fetchWithTimeout(resource, options = {}, timeoutMs = 45000) {
+async function fetchWithTimeout(resource, options = {}, timeoutMs = 120000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -134,6 +134,7 @@ async function callGeminiCloud({ prompt, apiKey, model }) {
 async function callOllama({ prompt, endpoint, model }) {
   const base = (endpoint || "http://localhost:11434").replace(/\/+$/, "");
   const url = `${base}/api/generate`;
+  // 180s (3 minutes) timeout for local inference
   const res = await fetchWithTimeout(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -143,7 +144,7 @@ async function callOllama({ prompt, endpoint, model }) {
       stream: false,
       format: "json"
     })
-  }, 45000);
+  }, 180000);
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
@@ -162,18 +163,20 @@ async function callOpenAiCompat({ prompt, endpoint, model, apiKey }) {
   const url = `${base}/chat/completions`;
   const headers = { "Content-Type": "application/json" };
   if (apiKey) {
-    headers["Authorization"] = `Bearer ${apiKey}`;
+    headers["Authorization"] = `Bearer ${apiKey.trim()}`;
   }
 
+  // 180s (3 minutes) timeout for local models and reasoning deliberation
   const res = await fetchWithTimeout(url, {
     method: "POST",
     headers,
     body: JSON.stringify({
       model: model || "local-model",
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.1
+      temperature: 0.1,
+      max_tokens: 4096
     })
-  }, 45000);
+  }, 180000);
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
@@ -181,11 +184,14 @@ async function callOpenAiCompat({ prompt, endpoint, model, apiKey }) {
   }
 
   const data = await res.json();
-  const text = data?.choices?.[0]?.message?.content;
-  if (!text) {
+  const choice = data?.choices?.[0]?.message;
+  const content = choice?.content || "";
+  const reasoning = choice?.reasoning_content || "";
+
+  if (!content && !reasoning) {
     throw new Error("Local AI server returned empty content.");
   }
-  return text;
+  return { content, reasoning, raw: content || reasoning };
 }
 
 async function getOllamaModels(endpoint) {
@@ -197,6 +203,20 @@ async function getOllamaModels(endpoint) {
   }
   const data = await res.json();
   const models = (data?.models || []).map((m) => m.name || m.model).filter(Boolean);
+  return models;
+}
+
+async function getOpenAiModels({ endpoint, apiKey }) {
+  const base = (endpoint || "http://localhost:1234/v1").replace(/\/+$/, "");
+  const url = `${base}/models`;
+  const headers = {};
+  if (apiKey) headers["Authorization"] = `Bearer ${apiKey.trim()}`;
+  const res = await fetchWithTimeout(url, { method: "GET", headers }, 8000);
+  if (!res.ok) {
+    throw new Error(`Could not fetch models from local server (HTTP ${res.status})`);
+  }
+  const data = await res.json().catch(() => ({}));
+  const models = (data?.data || []).map((m) => m.id).filter(Boolean);
   return models;
 }
 
@@ -526,6 +546,8 @@ async function analyzeJob({ url, title, description, profileId }) {
   const aiSettings = await getAiSettings();
   let aiRawResult = null;
   let activeEngineName = "ai";
+  let primaryError = null;
+  let fallbackNote = null;
 
   if (aiSettings.aiProvider === "gemini") {
     activeEngineName = `gemini:${aiSettings.geminiModel || "gemini-3.7-flash"}`;
@@ -545,6 +567,7 @@ async function analyzeJob({ url, title, description, profileId }) {
       aiRawResult = self.JobMatch.extractJson(responseText);
     } catch (e) {
       console.warn("[JobMatch Background] Gemini Cloud match error, falling back:", e);
+      primaryError = `Gemini Cloud error: ${e.message}`;
     }
   } else if (aiSettings.aiProvider === "ollama") {
     activeEngineName = `ollama:${aiSettings.ollamaModel}`;
@@ -564,6 +587,7 @@ async function analyzeJob({ url, title, description, profileId }) {
       aiRawResult = self.JobMatch.extractJson(responseText);
     } catch (e) {
       console.warn("[JobMatch Background] Ollama match error, falling back:", e);
+      primaryError = `Ollama (${aiSettings.ollamaModel}) error: ${e.message}`;
     }
   } else if (aiSettings.aiProvider === "openai_compat") {
     activeEngineName = `local-ai:${aiSettings.openaiModel}`;
@@ -575,15 +599,23 @@ async function analyzeJob({ url, title, description, profileId }) {
         detectedJobSkills: detMatch.detectedJobSkills || [],
         yearsOfExperience: targetProfile.yearsOfExperience
       });
-      const responseText = await callOpenAiCompat({
+      const response = await callOpenAiCompat({
         prompt,
         endpoint: aiSettings.openaiEndpoint,
         model: aiSettings.openaiModel,
         apiKey: aiSettings.openaiApiKey
       });
-      aiRawResult = self.JobMatch.extractJson(responseText);
+      // Extract from content first, then reasoning if content had no valid JSON
+      aiRawResult = self.JobMatch.extractJson(response.content);
+      if (!aiRawResult && response.reasoning) {
+        aiRawResult = self.JobMatch.extractJson(response.reasoning);
+      }
+      if (!aiRawResult && response.raw) {
+        aiRawResult = self.JobMatch.extractJson(response.raw);
+      }
     } catch (e) {
       console.warn("[JobMatch Background] Local OpenAI-compatible match error, falling back:", e);
+      primaryError = `Local model (${aiSettings.openaiModel}) error: ${e.message}`;
     }
   } else {
     // Default Chrome built-in Gemini Nano via offscreen
@@ -604,6 +636,30 @@ async function analyzeJob({ url, title, description, profileId }) {
       }
     } catch (e) {
       console.warn("[JobMatch Background] On-device AI threw exception:", e);
+    }
+  }
+
+  // Multi-tier Fallback: If primary AI provider failed (and wasn't Chrome Nano), try Chrome built-in Gemini Nano first!
+  if (!aiRawResult && aiSettings.aiProvider !== "chrome") {
+    try {
+      console.log(`[JobMatch Background] Primary provider (${aiSettings.aiProvider}) failed. Attempting first fallback: Chrome built-in Gemini Nano...`);
+      const nanoResponse = await askOffscreen({
+        type: "AI_MATCH_JOB",
+        resumeText: targetProfile.text,
+        jobTitle: title,
+        jobText: description,
+        detectedJobSkills: detMatch.detectedJobSkills || [],
+        yearsOfExperience: targetProfile.yearsOfExperience
+      });
+      if (nanoResponse?.ok && nanoResponse.result) {
+        aiRawResult = nanoResponse.result;
+        activeEngineName = "ai";
+        fallbackNote = primaryError
+          ? `${primaryError}. Fell back to Chrome built-in Gemini Nano.`
+          : `Primary AI unavailable. Fell back to Chrome built-in Gemini Nano.`;
+      }
+    } catch (nanoErr) {
+      console.warn("[JobMatch Background] Chrome built-in Gemini Nano fallback also failed:", nanoErr);
     }
   }
 
@@ -655,12 +711,16 @@ async function analyzeJob({ url, title, description, profileId }) {
       gaps: groundedGaps,
       suggestions: groundedSuggestions,
       matchedSkills: detMatch.matchedSkills || [],
-      experienceAnalysis: detMatch.experienceAnalysis || null
+      experienceAnalysis: detMatch.experienceAnalysis || null,
+      fallbackNote: fallbackNote || null
     };
   }
 
   if (!result) {
-    result = detMatch;
+    result = { ...detMatch };
+    if (primaryError) {
+      result.fallbackNote = `${primaryError}. Chrome Nano unavailable. Showing offline keyword match.`;
+    }
   }
 
   if (result) {
@@ -787,6 +847,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       case "GET_OLLAMA_MODELS": {
         try {
           const models = await getOllamaModels(msg.payload?.endpoint);
+          sendResponse({ ok: true, models });
+        } catch (err) {
+          sendResponse({ ok: false, error: err?.message || String(err) });
+        }
+        return;
+      }
+      case "GET_OPENAI_MODELS": {
+        try {
+          const models = await getOpenAiModels(msg.payload || {});
           sendResponse({ ok: true, models });
         } catch (err) {
           sendResponse({ ok: false, error: err?.message || String(err) });

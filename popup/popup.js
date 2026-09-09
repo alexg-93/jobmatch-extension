@@ -250,6 +250,44 @@ async function populateOllamaModels(endpoint) {
       statusEl.className = "conn-status-text err";
     }
   }
+async function populateOpenAiModels(endpoint, apiKey) {
+  const datalist = $("openaiModelsList");
+  if (!datalist) return;
+  const statusEl = $("openaiConnStatus");
+  if (statusEl) {
+    statusEl.textContent = "Fetching models…";
+    statusEl.className = "conn-status-text loading";
+  }
+
+  const res = await sendMessage({
+    type: "GET_OPENAI_MODELS",
+    payload: { endpoint, apiKey }
+  });
+
+  datalist.innerHTML = "";
+  if (res?.ok && Array.isArray(res.models) && res.models.length > 0) {
+    res.models.forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = m;
+      datalist.appendChild(opt);
+    });
+
+    if (currentAiSettings.openaiModel === "local-model" && res.models[0]) {
+      const input = $("openaiModelInput");
+      if (input) input.value = res.models[0];
+      currentAiSettings.openaiModel = res.models[0];
+      await sendMessage({ type: "SAVE_AI_SETTINGS", payload: { openaiModel: res.models[0] } });
+      updateAiStatusDisplay();
+    }
+
+    if (statusEl) {
+      statusEl.textContent = `Connected (${res.models.length} models)`;
+      statusEl.className = "conn-status-text ok";
+    }
+  } else if (statusEl) {
+    statusEl.textContent = res?.error ? "Offline / Not connected" : "No models found";
+    statusEl.className = "conn-status-text err";
+  }
 }
 
 async function loadExisting() {
@@ -278,6 +316,8 @@ async function loadExisting() {
   updateAiProviderUI(currentAiSettings.aiProvider);
   if (currentAiSettings.aiProvider === "ollama") {
     populateOllamaModels(currentAiSettings.ollamaEndpoint);
+  } else if (currentAiSettings.aiProvider === "openai_compat") {
+    populateOpenAiModels(currentAiSettings.openaiEndpoint, currentAiSettings.openaiApiKey);
   }
 
   const { scanMode = "auto" } = await chrome.storage.local.get("scanMode");
@@ -314,6 +354,8 @@ document.querySelectorAll("#aiProviderToggle .provider-btn").forEach((btn) => {
     await sendMessage({ type: "SAVE_AI_SETTINGS", payload: { aiProvider: provider } });
     if (provider === "ollama") {
       populateOllamaModels(currentAiSettings.ollamaEndpoint);
+    } else if (provider === "openai_compat") {
+      populateOpenAiModels(currentAiSettings.openaiEndpoint, currentAiSettings.openaiApiKey);
     }
   });
 });
@@ -348,6 +390,12 @@ $("testOllamaBtn")?.addEventListener("click", async () => {
   }
 });
 
+$("refreshOpenAiModelsBtn")?.addEventListener("click", async () => {
+  const ep = $("openaiEndpoint")?.value.trim() || currentAiSettings.openaiEndpoint;
+  const key = $("openaiApiKeyInput")?.value.trim() || currentAiSettings.openaiApiKey;
+  populateOpenAiModels(ep, key);
+});
+
 $("testOpenAiBtn")?.addEventListener("click", async () => {
   const statusEl = $("openaiConnStatus");
   if (statusEl) {
@@ -365,6 +413,9 @@ $("testOpenAiBtn")?.addEventListener("click", async () => {
     if (res?.ok) {
       statusEl.textContent = res.message || "Connected!";
       statusEl.className = "conn-status-text ok";
+      if (Array.isArray(res.models) && res.models.length > 0) {
+        populateOpenAiModels(ep, apiKey);
+      }
     } else {
       statusEl.textContent = res?.error || "Offline";
       statusEl.className = "conn-status-text err";

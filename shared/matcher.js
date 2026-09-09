@@ -817,6 +817,7 @@
 
     return [
       "You are an expert resume-to-job matching assistant. Compare the RESUME to the JOB POSTING.",
+      "Be direct and concise. Output the JSON object immediately without unnecessary deliberation or preamble.",
       "Respond with ONLY valid JSON, no markdown fences, no commentary, in this exact shape:",
       '{"matchPercent": <integer 0-100>, "strengths": [<string>, ...max 3], "gaps": [<string>, ...max 3], "missingSkills": [<string>, ...max 10], "suggestions": [<string>, ...max 5]}',
       "matchPercent reflects how well the resume's skills/experience fit this specific job.",
@@ -857,6 +858,8 @@
   function extractJson(rawText) {
     if (!rawText) return null;
     let text = rawText.trim();
+    // Strip <think>...</think> blocks from reasoning models (DeepSeek-R1, Phi-4, QwQ)
+    text = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
     text = text.replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/```\s*$/, "");
     const start = text.indexOf("{");
     const end = text.lastIndexOf("}");

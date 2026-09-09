@@ -71,7 +71,11 @@
       </div>
       <div class="field-row">
         <label class="field-label-small" for="openaiModelInput">Model Name</label>
-        <input type="text" id="openaiModelInput" class="text-input-sm" value="local-model" placeholder="e.g. qwen2.5-7b, llama-3.2" />
+        <div class="select-with-btn">
+          <input type="text" id="openaiModelInput" list="openaiModelsList" class="text-input-sm" value="local-model" placeholder="e.g. microsoft/phi-4-reasoning-plus" />
+          <datalist id="openaiModelsList"></datalist>
+          <button type="button" id="refreshOpenAiModelsBtn" class="btn btn-tiny" title="Fetch loaded models from LM Studio / local server">🔄</button>
+        </div>
       </div>
       <div class="field-row">
         <label class="field-label-small" for="openaiApiKeyInput">API Key (optional)</label>

@@ -157,6 +157,17 @@
   color: #6b7280;
 }
 
+#jobmatch-widget-root .jm-fallback-note {
+  font-size: 11px;
+  line-height: 1.35;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  padding: 5px 8px;
+  margin-bottom: 8px;
+}
+
 #jobmatch-widget-root .jm-note {
   font-size: 12px;
   color: #6b7280;

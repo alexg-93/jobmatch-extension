@@ -119,6 +119,7 @@
           <div class="jm-score" style="color:${colorForPercent(pct)}">${pctLabel}</div>
           <div class="jm-score-label">match${engineLabel ? ` · ${engineLabel}` : ""}</div>
         </div>
+        ${result.fallbackNote ? `<div class="jm-fallback-note">ℹ️ ${escapeHtml(result.fallbackNote)}</div>` : ""}
         ${result.note ? `<div class="jm-note">${escapeHtml(result.note)}</div>` : ""}
         ${strengths.length ? `
           <div class="jm-section jm-section--strengths">
