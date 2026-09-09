@@ -6,23 +6,26 @@ Drushim job listings as you browse.
 ## Features
 
 - **🔒 100% Private On-Device AI**: Powered by Chrome's built-in Gemini Nano model (Prompt API / `LanguageModel`). Runs completely locally on your device — zero API keys, no network calls, and your resume never leaves your computer.
-- **⚡ Reliable Offline Fallback Matcher**: Seamless fallback engine with a built-in technical dictionary. If the AI model isn't active or downloaded yet on your Chrome browser, keyword matching provides instant scores and missing skill feedback.
+- **⚡ Hybrid Matching Engine**: Merges on-device generative AI with deterministic ground-truth keyword extraction. Seeding detected job requirements into the prompt ensures critical technical gaps (like `SQL`, `PostgreSQL`, `MongoDB`, `.NET`, `RabbitMQ`) are never omitted.
 - **🌐 Native Support for LinkedIn & Drushim**:
-  - **LinkedIn**: Works across `/jobs/view/*`, search collections, and single-page app (SPA) navigations without re-scanning loops.
-  - **Drushim (דרושים)**: Optimized for Israeli tech jobs. Smartly targets individual job listings (`/job/*`) while ignoring search/catalog index pages.
+  - **LinkedIn**: Analyzes dedicated job pages (`https://www.linkedin.com/jobs/view/*`), while automatically ignoring multi-job search result panels (`/jobs/search-results/*`, `/jobs/search/*`, `/jobs/collections/*`) to prevent scraping entire search lists.
+  - **Drushim (דרושים)**: Optimized for Israeli tech jobs. Smartly targets individual job listings (`/job/*`) while ignoring search/catalog index pages (`/jobs/search/*`).
+- **🏷️ Scanned Job Title in Header**: Displays the exact job title analyzed directly underneath the "JobMatch" title in the results panel header (and during loading), so you always know which job is active.
 - **🔄 Auto & Manual Scanning Modes**:
   - **Auto Mode**: Automatically evaluates job postings in the background as you browse.
   - **Manual Mode**: Only analyzes when you want it to. Displays a discreet floating `✨ Scan Job` button on job pages.
 - **🖱️ Draggable Floating Trigger**: In manual mode, drag the `✨ Scan Job` button anywhere on your screen using the `⋮⋮` handle, or dismiss it with `×`. Positions clamp smoothly within viewport boundaries.
 - **🎯 Match Percentage & Missing Skills Badges**: Clean floating results card showing your overall match score, color-coded status, active engine badge (`on-device AI` or `keyword match`), and tag badges for required technologies missing from your resume.
+- **📊 Priority-Based Skill Sorting**: Missing skills are sorted by technical domain hierarchy (Databases & Storage, Languages & Frameworks, Queues, Cloud & DevOps first), with standardized capitalization (`SQL`, `PostgreSQL`, `MongoDB`, `RabbitMQ`, `C#`, `.NET`).
 - **💡 Actionable Resume Suggestions**: Provides bulleted, targeted recommendations on which experiences, frameworks, or tools to highlight to pass ATS screening.
 - **🇮🇱 Hebrew & Unicode Support**: Built-in word boundary support for Hebrew characters and attached prefixes (`ב-`, `ה-`, `ו-`, `ל-`, `מ-`, `ש-`, `כ-`) common on Drushim (e.g. `ב-React`, `בניהול פרויקטים`).
-- **🔤 Skill Synonyms & Canonicalization**: Smart normalization for common variations (e.g. `React` ↔ `ReactJS`, `NodeJS` ↔ `Node.js`, `Golang` ↔ `Go`, `k8s` ↔ `Kubernetes`, `Postgres` ↔ `PostgreSQL`).
+- **🔤 Skill Synonyms & Canonicalization**: Smart normalization for common variations (e.g. `React` ↔ `ReactJS`, `NodeJS` ↔ `Node.js`, `Golang` ↔ `Go`, `k8s` ↔ `Kubernetes`, `Postgres` ↔ `PostgreSQL`, `Rabbit MQ` ↔ `RabbitMQ`).
+- **🛡️ Robust Extension Lifecycle**: Gracefully handles extension updates and reloads in `chrome://extensions` with automatic timer teardown, preventing context invalidation errors.
 - **📄 Easy Resume Upload & Local Cache**:
   - Upload PDF directly (parsed on-device via bundled `pdf.js`) or paste plain text.
   - Add custom skills to track in the popup.
   - Interactive save button with loading spinner and double-click prevention.
-  - Smart per-job caching in `chrome.storage.local` with automatic invalidation when you update your resume.
+  - Versioned per-job caching (`cache:v2:`) in `chrome.storage.local` with automatic cache invalidation when updating your resume.
 
 
 ## Install (unpacked, for development)
@@ -31,25 +34,16 @@ Drushim job listings as you browse.
 2. Enable **Developer mode** (top right)
 3. Click **Load unpacked** → select this folder
 4. Click the JobMatch icon in the toolbar → upload/paste your resume → **Save resume**
-5. Browse a job on `linkedin.com/jobs/...` or `drushim.co.il` — a panel appears bottom-right
+5. Browse a job on `linkedin.com/jobs/view/...` or `drushim.co.il/job/...` — a panel appears bottom-right
 
 ## How matching works
 
-Two engines, automatic fallback, no configuration needed:
+JobMatch uses a **Hybrid Matching Architecture** combining deterministic ground truth with on-device generative AI:
 
-1. **On-device AI (preferred)** — Chrome's built-in Gemini Nano model
-   (the "Prompt API" / `LanguageModel`), run inside a hidden offscreen
-   page. Free, no API key, nothing leaves the machine. This is a newer
-   Chrome capability that's still rolling out — the popup shows whether
-   it's active on your install.
-2. **Offline keyword matcher (fallback)** — always available, no
-   dependency on the AI API. Uses a built-in skills dictionary
-   (`shared/matcher.js`) plus whatever you add in the popup's "Extra
-   skills to track" field.
-
-If on-device AI isn't available (or the model output isn't parseable),
-the extension silently falls back to the keyword matcher — you'll always
-get a result, just a less nuanced one.
+1. **Deterministic Baseline**: A high-coverage skills dictionary (`shared/matcher.js`) scans the job listing for required technologies across Databases (SQL, NoSQL, PostgreSQL, MongoDB, Redis), Languages & Frameworks (.NET, C#, Python, React), Messaging (RabbitMQ, Kafka), and Cloud/DevOps.
+2. **AI Prompt Seeding**: Detected technologies are fed directly into Chrome's built-in **Gemini Nano** model (Prompt API / `LanguageModel` running inside a hidden offscreen page) to guide its attention across all technical categories.
+3. **Smart Merge & Deduplication**: The AI's qualitative findings (fit percentage, tailored suggestions) are merged with deterministic missing skills. Critical requirements are sorted by domain priority (Databases & Languages first) and presented with clean acronym capitalization (`SQL`, `PostgreSQL`, `RabbitMQ`, `C#`, `.NET`).
+4. **Offline Fallback**: If on-device AI isn't available or downloading, the extension smoothly falls back to the deterministic keyword engine — you will always get an instant match score and missing skills list.
 
 ## Architecture
 
