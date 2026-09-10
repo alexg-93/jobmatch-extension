@@ -21,7 +21,7 @@
     // Web / Frontend
     "react", "reactjs", "react.js", "next.js", "nextjs", "redux", "redux toolkit", "zustand",
     "tanstack query", "react query", "vue", "vue 3", "vue 2", "vuejs", "vue.js", "vuex", "pinia", "vue router",
-    "angular", "angularjs", "svelte", "html", "css",
+    "angular", "angularjs", "svelte", "html", "html5", "css", "css3",
     "tailwind", "sass", "scss", "storybook",
     // Backend & Frameworks
     ".net", ".net core", "asp.net", "asp.net core", "entity framework", "linq",
@@ -54,6 +54,8 @@
     "vue 2": "vue",
     "vue 2/3": "vue",
     "angularjs": "angular",
+    "html5": "html",
+    "css3": "css",
     "golang": "go",
     "k8s": "kubernetes",
     "postgres": "postgresql",

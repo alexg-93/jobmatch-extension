@@ -55,6 +55,17 @@ describe("keywordMatch", () => {
     assert.ok(result.note);
   });
 
+  test("matches versioned skill names in the resume against their bare form in the job (HTML5 -> HTML, CSS3 -> CSS)", () => {
+    const result = JobMatch.keywordMatch(
+      "Languages & Web: JavaScript (ES6+), TypeScript, HTML5, CSS3/TailwindCSS",
+      "Requirements: HTML, CSS, and JavaScript are required.",
+      [],
+      null
+    );
+    assert.deepEqual(result.matchedSkills.sort(), ["CSS", "HTML", "JavaScript"]);
+    assert.deepEqual(result.missingSkills, []);
+  });
+
   test("respects custom skills supplied by the user's profile", () => {
     const result = JobMatch.keywordMatch(
       "I have shipped several projects using Splunk dashboards.",
