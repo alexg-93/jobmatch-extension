@@ -25,6 +25,8 @@
     let dismissedManualKey = null;
     let scanMode = "auto";
     let tickInterval = null;
+    let debounceTimer = null;
+    let observer = null;
 
     if (typeof chrome !== "undefined") {
       try {
@@ -41,6 +43,24 @@
         clearInterval(tickInterval);
         tickInterval = null;
       }
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
+    }
+
+    // SPA route/content changes (a new job selected, a description finishing
+    // its async render) show up as DOM mutations, so react to those directly
+    // instead of polling every 1.5s regardless of whether anything changed.
+    // Debounced so a burst of mutations (e.g. a whole list re-rendering)
+    // collapses into a single tick().
+    function scheduleTick() {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(tick, 250);
     }
 
     function analyze(job, key, profileId = null) {
@@ -170,7 +190,15 @@
       });
     }
 
-    tickInterval = setInterval(tick, 1500);
+    if (typeof MutationObserver !== "undefined") {
+      observer = new MutationObserver(scheduleTick);
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+    }
+
+    // Low-frequency safety net: catches route changes that don't trigger an
+    // observable DOM mutation (rare) and the very first render. Far cheaper
+    // than the previous unconditional 1.5s poll.
+    tickInterval = setInterval(tick, 4000);
     tick();
 
     return { tick };
