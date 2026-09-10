@@ -1,0 +1,15 @@
+{
+  "name": "jobmatch-extension",
+  "version": "0.11.3",
+  "private": true,
+  "description": "JobMatch — Resume Matcher Chrome extension (LinkedIn, Drushim, AllJobs, Comeet, Greenhouse)",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\"",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.10.0"
+  }
+}

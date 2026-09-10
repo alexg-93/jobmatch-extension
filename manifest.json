@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
   "name": "JobMatch — Resume Matcher (LinkedIn, Drushim, AllJobs, Comeet, Greenhouse)",
-  "version": "0.11.2",
+  "version": "0.11.3",
+  "version_name": "0.11.3-refactor",
   "description": "Upload your resume once. See your match score, strengths, and gap analysis on LinkedIn, Drushim, AllJobs, Comeet, and Greenhouse, powered by Gemini AI and local models.",
   "permissions": ["storage", "offscreen"],
   "host_permissions": [
@@ -42,7 +43,7 @@
         "https://www.linkedin.com/*",
         "https://linkedin.com/*"
       ],
-      "js": ["content/widget.js", "content/linkedin.js"],
+      "js": ["content/widget.js", "content/base-adapter.js", "content/linkedin.js"],
       "css": ["content/widget.css"],
       "run_at": "document_idle"
     },
@@ -51,7 +52,7 @@
         "https://*.drushim.co.il/*",
         "https://drushim.co.il/*"
       ],
-      "js": ["content/widget.js", "content/drushim.js"],
+      "js": ["content/widget.js", "content/base-adapter.js", "content/drushim.js"],
       "css": ["content/widget.css"],
       "run_at": "document_idle"
     },
@@ -60,7 +61,7 @@
         "https://*.alljobs.co.il/*",
         "https://alljobs.co.il/*"
       ],
-      "js": ["content/widget.js", "content/alljobs.js"],
+      "js": ["content/widget.js", "content/base-adapter.js", "content/alljobs.js"],
       "css": ["content/widget.css"],
       "run_at": "document_idle"
     },
@@ -69,7 +70,7 @@
         "https://*.comeet.com/jobs/*",
         "https://comeet.com/jobs/*"
       ],
-      "js": ["content/widget.js", "content/comeet.js"],
+      "js": ["content/widget.js", "content/base-adapter.js", "content/comeet.js"],
       "css": ["content/widget.css"],
       "run_at": "document_idle"
     },
@@ -79,7 +80,7 @@
         "https://job-boards.greenhouse.io/*",
         "https://*.greenhouse.io/*"
       ],
-      "js": ["content/widget.js", "content/greenhouse.js"],
+      "js": ["content/widget.js", "content/base-adapter.js", "content/greenhouse.js"],
       "css": ["content/widget.css"],
       "run_at": "document_idle"
     }

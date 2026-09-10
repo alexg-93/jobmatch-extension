@@ -385,10 +385,7 @@ async function saveProfile(profileData) {
   };
 
   // Invalidate cache for this profile
-  const all = await chrome.storage.local.get(null);
-  const prefix = `cache:v3:${targetId}:`;
-  const cacheKeys = Object.keys(all).filter((k) => k.startsWith(prefix));
-  if (cacheKeys.length) await chrome.storage.local.remove(cacheKeys);
+  await clearProfileCache(targetId);
 
   await chrome.storage.local.set({
     profiles: updatedProfiles,
@@ -420,10 +417,7 @@ async function deleteProfile(profileId) {
   };
 
   // Invalidate cache for deleted profile
-  const all = await chrome.storage.local.get(null);
-  const prefix = `cache:v3:${profileId}:`;
-  const cacheKeys = Object.keys(all).filter((k) => k.startsWith(prefix));
-  if (cacheKeys.length) await chrome.storage.local.remove(cacheKeys);
+  await clearProfileCache(profileId);
 
   await chrome.storage.local.set({
     profiles: updatedProfiles,
@@ -463,7 +457,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   try {
     await ensureProfilesMigrated();
     const all = await chrome.storage.local.get(null);
-    const staleKeys = Object.keys(all).filter((k) => k.startsWith("cache:v1:") || k.startsWith("cache:v2:") || k.startsWith("cache:v3:"));
+    const staleKeys = Object.keys(all).filter((k) => k.startsWith("cache:v1:") || k.startsWith("cache:v2:") || k.startsWith("cache:v3:") || k.startsWith("cache:v5:"));
     if (staleKeys.length) await chrome.storage.local.remove(staleKeys);
   } catch (e) {
     // ignore
@@ -471,7 +465,69 @@ chrome.runtime.onInstalled.addListener(async () => {
 });
 
 function cacheKey(url, profileId) {
-  return `cache:v5:${profileId || "default"}:${url}`;
+  return `cache:v6:${profileId || "default"}:${url}`;
+}
+
+// Per-profile index of cache keys (cacheIndex[profileId] = [cacheKey, ...]),
+// so profile save/delete and AI-settings changes can remove exactly the
+// entries that belong to them instead of pulling the entire extension
+// storage (including every profile's resume text) into memory just to
+// filter it by string prefix. Also bounds how many cached job results a
+// single profile can accumulate, since the old approach only ever evicted
+// entries lazily, on the rare chance that exact URL was revisited before
+// its 7-day TTL lapsed.
+const CACHE_INDEX_KEY = "cacheIndex";
+const MAX_CACHE_ENTRIES_PER_PROFILE = 300;
+
+async function getCacheIndex() {
+  const { [CACHE_INDEX_KEY]: index } = await chrome.storage.local.get(CACHE_INDEX_KEY);
+  return index && typeof index === "object" ? index : {};
+}
+
+async function addToCacheIndex(profileId, key) {
+  const index = await getCacheIndex();
+  const id = profileId || "default";
+  const list = (Array.isArray(index[id]) ? index[id] : []).filter((k) => k !== key);
+  list.push(key);
+
+  let evicted = [];
+  if (list.length > MAX_CACHE_ENTRIES_PER_PROFILE) {
+    evicted = list.splice(0, list.length - MAX_CACHE_ENTRIES_PER_PROFILE);
+  }
+  index[id] = list;
+
+  await chrome.storage.local.set({ [CACHE_INDEX_KEY]: index });
+  if (evicted.length) {
+    await chrome.storage.local.remove(evicted).catch(() => {});
+  }
+}
+
+async function removeFromCacheIndex(profileId, key) {
+  const index = await getCacheIndex();
+  const id = profileId || "default";
+  if (!Array.isArray(index[id])) return;
+  index[id] = index[id].filter((k) => k !== key);
+  await chrome.storage.local.set({ [CACHE_INDEX_KEY]: index }).catch(() => {});
+}
+
+async function clearProfileCache(profileId) {
+  const index = await getCacheIndex();
+  const id = profileId || "default";
+  const keys = Array.isArray(index[id]) ? index[id] : [];
+  if (keys.length) {
+    await chrome.storage.local.remove(keys).catch(() => {});
+  }
+  delete index[id];
+  await chrome.storage.local.set({ [CACHE_INDEX_KEY]: index });
+}
+
+async function clearAllCache() {
+  const index = await getCacheIndex();
+  const allKeys = Object.values(index).filter(Array.isArray).flat();
+  if (allKeys.length) {
+    await chrome.storage.local.remove(allKeys).catch(() => {});
+  }
+  await chrome.storage.local.remove(CACHE_INDEX_KEY).catch(() => {});
 }
 
 async function getCachedResult(url, profileId) {
@@ -483,6 +539,7 @@ async function getCachedResult(url, profileId) {
   // treat as a cache miss to give on-device AI another chance to analyze the job!
   if (cached.expiresAt && Date.now() > cached.expiresAt) {
     chrome.storage.local.remove(key).catch(() => {});
+    removeFromCacheIndex(profileId, key).catch(() => {});
     return null;
   }
   return cached;
@@ -501,9 +558,10 @@ async function setCachedResult(url, profileId, result) {
       isFallback
     }
   });
+  await addToCacheIndex(profileId, key);
 }
 
-async function analyzeJob({ url, title, description, profileId }) {
+async function analyzeJob({ url, title, description, profileId, forceRefresh }) {
   const { profiles, activeProfileId } = await ensureProfilesMigrated();
   const targetProfileId = profileId || activeProfileId;
   const targetProfile = profiles.find((p) => p.id === targetProfileId) || profiles[0];
@@ -514,7 +572,7 @@ async function analyzeJob({ url, title, description, profileId }) {
     hasResume: Boolean(p.text && p.text.trim())
   }));
 
-  const cached = await getCachedResult(url, targetProfileId);
+  const cached = forceRefresh ? null : await getCachedResult(url, targetProfileId);
   if (cached) {
     return {
       ...cached,
@@ -545,7 +603,7 @@ async function analyzeJob({ url, title, description, profileId }) {
 
   const aiSettings = await getAiSettings();
   let aiRawResult = null;
-  let activeEngineName = "ai";
+  let activeEngineName;
   let primaryError = null;
   let fallbackNote = null;
 
@@ -557,7 +615,8 @@ async function analyzeJob({ url, title, description, profileId }) {
         jobTitle: title,
         jobText: description,
         detectedJobSkills: detMatch.detectedJobSkills || [],
-        yearsOfExperience: targetProfile.yearsOfExperience
+        yearsOfExperience: targetProfile.yearsOfExperience,
+        richness: "rich" // cloud provider: ample context/latency budget for the few-shot example
       });
       const responseText = await callGeminiCloud({
         prompt,
@@ -660,6 +719,26 @@ async function analyzeJob({ url, title, description, profileId }) {
       }
     } catch (nanoErr) {
       console.warn("[JobMatch Background] Chrome built-in Gemini Nano fallback also failed:", nanoErr);
+    }
+  }
+
+  // Every provider's raw JSON goes through the same normalization before use:
+  // clamp matchPercent to 0-100, and coerce each list field to an array of
+  // trimmed strings so a malformed/reasoning-model response can't propagate
+  // an out-of-range score or a non-array field into the UI or the grounding logic.
+  if (aiRawResult) {
+    aiRawResult = self.JobMatch.normalizeAiMatchResult(aiRawResult);
+
+    // matchPercent isn't grounded against the job text the way missingSkills/
+    // strengths/gaps/suggestions are, so pull it back toward the deterministic
+    // keyword-match baseline if it swings implausibly far from it (e.g. a
+    // prompt-injected job posting trying to force an extreme score).
+    const reconciled = self.JobMatch.reconcileMatchPercent(aiRawResult.matchPercent, detMatch.matchPercent);
+    if (reconciled !== aiRawResult.matchPercent) {
+      console.warn(
+        `[JobMatch Background] AI matchPercent (${aiRawResult.matchPercent}) deviated too far from keyword baseline (${detMatch.matchPercent}); reconciled to ${reconciled}.`
+      );
+      aiRawResult.matchPercent = reconciled;
     }
   }
 
@@ -831,11 +910,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             current.ollamaModel !== next.ollamaModel ||
             current.openaiModel !== next.openaiModel
           ) {
-            const all = await chrome.storage.local.get(null);
-            const cacheKeys = Object.keys(all).filter((k) => k.startsWith("cache:v"));
-            if (cacheKeys.length > 0) {
-              await chrome.storage.local.remove(cacheKeys);
-            }
+            await clearAllCache();
           }
 
           sendResponse({ ok: true, settings: next });

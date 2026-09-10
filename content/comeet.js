@@ -1,7 +1,9 @@
 // content/comeet.js
 // Comeet adapter for JobMatch.
 // Supports Comeet ATS career portals (comeet.com/jobs/*).
-// Monitors for client-side route changes, extracts title and description, and drives the widget.
+// window.JobMatchAdapter (base-adapter.js) handles polling, scan-mode, and
+// the analyze round-trip; this file only defines Comeet-specific extraction
+// and job identity.
 
 const TITLE_SELECTORS = [
   "h1.position-name",
@@ -91,143 +93,15 @@ function isSpecificJobPage(inputUrl) {
   }
 }
 
-let currentJobKey = null;
-let analyzedJobKey = null;
-let isAnalyzing = false;
-let dismissedManualKey = null;
-let scanMode = "auto";
-let tickInterval = null;
-
-if (typeof chrome !== "undefined") {
-  try {
-    chrome.storage?.local?.get("scanMode", (data) => {
-      if (data?.scanMode) scanMode = data.scanMode;
-    });
-  } catch (e) {
-    // context invalidated
-  }
-}
-
-function analyze(job, key, profileId = null) {
-  if (!chrome.runtime?.id) {
-    if (tickInterval) clearInterval(tickInterval);
-    window.JobMatchWidget?.renderError?.("Extension updated. Please refresh the page.");
-    return;
-  }
-
-  isAnalyzing = true;
-  window.JobMatchWidget.renderLoading(job.title);
-
-  try {
-    chrome.runtime.sendMessage(
-      { type: "ANALYZE_JOB", payload: { url: key, title: job.title, description: job.description, profileId } },
-      (result) => {
-        isAnalyzing = false;
-        if (!chrome.runtime?.id || chrome.runtime.lastError) {
-          analyzedJobKey = key;
-          window.JobMatchWidget?.renderError?.("Extension updated. Please refresh the page.");
-          if (tickInterval) clearInterval(tickInterval);
-          return;
-        }
-        if (currentJobKey !== key) return;
-
-        if (!result) {
-          analyzedJobKey = key;
-          window.JobMatchWidget.renderError("No response from extension — try reloading the page.");
-          return;
-        }
-        if (result.error) {
-          if (result.engine !== "none") {
-            analyzedJobKey = key;
-          }
-          window.JobMatchWidget.renderError(result.error);
-          return;
-        }
-
-        analyzedJobKey = key;
-        window.JobMatchWidget.renderResult(result, (newProfileId) => {
-          analyze(job, key, newProfileId);
-        });
-      }
-    );
-  } catch (err) {
-    isAnalyzing = false;
-    if (tickInterval) clearInterval(tickInterval);
-    window.JobMatchWidget?.renderError?.("Extension updated. Please refresh the page.");
-  }
-}
-
-function tick() {
-  if (!chrome.runtime?.id) {
-    if (tickInterval) clearInterval(tickInterval);
-    return;
-  }
-
-  if (!isSpecificJobPage()) {
-    window.JobMatchWidget?.hide?.();
-    window.JobMatchWidget?.hideManualButton?.();
-    return;
-  }
-
-  const key = jobKeyFromUrl();
-
-  if (key !== currentJobKey) {
-    currentJobKey = key;
-    analyzedJobKey = null;
-    dismissedManualKey = null;
-  }
-
-  const job = extractJob();
-  if (!job.description || job.description.length < 50) return;
-
-  if (scanMode === "manual") {
-    if (analyzedJobKey === key) {
-      window.JobMatchWidget?.hideManualButton?.();
-      return;
-    }
-    if (isAnalyzing) {
-      window.JobMatchWidget?.hideManualButton?.();
-      return;
-    }
-    if (dismissedManualKey === key) {
-      return;
-    }
-    window.JobMatchWidget?.showManualButton?.(
-      () => {
-        window.JobMatchWidget?.hideManualButton?.();
-        analyze(job, key);
-      },
-      () => {
-        dismissedManualKey = key;
-      }
-    );
-    return;
-  }
-
-  window.JobMatchWidget?.hideManualButton?.();
-  if (analyzedJobKey === key) return;
-  if (isAnalyzing) return;
-
-  analyze(job, key);
-}
-
-if (typeof chrome !== "undefined") {
-  chrome.storage?.onChanged?.addListener((changes, area) => {
-    if (area === "local") {
-      if (changes.resume || changes.activeProfileId || changes.profiles) {
-        analyzedJobKey = null;
-        tick();
-      }
-      if (changes.scanMode) {
-        scanMode = changes.scanMode.newValue || "auto";
-        tick();
-      }
-    }
+if (typeof window !== "undefined" && window.JobMatchAdapter) {
+  window.JobMatchAdapter.start({
+    extractJob,
+    jobKeyFromUrl,
+    isSpecificJobPage,
+    minDescriptionLength: 50
   });
-
-  tickInterval = setInterval(tick, 1500);
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { jobKeyFromUrl, isSpecificJobPage };
+  module.exports = { jobKeyFromUrl, isSpecificJobPage, extractJob };
 }
