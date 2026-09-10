@@ -103,17 +103,18 @@
   justify-content: center;
   border: none;
   background: transparent;
-  font-size: 20px;
+  font-size: 26px;
+  font-weight: 700;
   line-height: 1;
   cursor: pointer;
-  color: #9ca3af;
-  padding: 4px;
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
+  color: #6b7280;
+  padding: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
 }
 
-#jobmatch-widget-root .jm-refresh { font-size: 17px; }
+#jobmatch-widget-root .jm-refresh { font-size: 22px; }
 
 #jobmatch-widget-root .jm-close:hover,
 #jobmatch-widget-root .jm-refresh:hover { color: #374151; background: #f3f4f6; }
