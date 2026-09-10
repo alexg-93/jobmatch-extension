@@ -1,25 +1,31 @@
 // content/greenhouse.js
 // Greenhouse adapter for JobMatch.
-// Supports Greenhouse job boards (boards.greenhouse.io/*).
+// Supports Greenhouse job boards (boards.greenhouse.io/*, job-boards.greenhouse.io/*, *.greenhouse.io/*).
 // Monitors for route/job changes, extracts title and description, and drives the widget.
 
 const TITLE_SELECTORS = [
-  "h1.app-title",
+  "h1.section-header",
   ".job__title h1",
+  ".job__header h1",
+  ".job__title",
+  "h1.app-title",
   "h1.job-title",
   ".job-title",
+  "[data-qa='job-title']",
   "h1",
   ".app-title"
 ];
 
 const DESC_SELECTORS = [
-  "#content",
-  "#job-description",
+  ".job__description.body",
   ".job__description",
-  "#app-body",
-  ".content",
+  ".job-post-container .job__description",
+  "#job-description",
   "[data-qa='job-description']",
-  ".job-description"
+  ".job-description",
+  "#content",
+  "#app-body",
+  ".content"
 ];
 
 function pickText(selectors, minLength = 20) {
@@ -69,7 +75,7 @@ function jobKeyFromUrl(inputUrl) {
     const mJobPath = urlObj.pathname.match(/\/jobs\/(\d+)/i);
     const mSegments = urlObj.pathname.split("/").filter(Boolean);
 
-    let company = forCompany || "";
+    let company = (forCompany || "").toLowerCase();
     let jobId = mToken || "";
 
     if (mJobPath) {
@@ -77,7 +83,7 @@ function jobKeyFromUrl(inputUrl) {
     }
     const jobIdx = mSegments.indexOf("jobs");
     if (jobIdx > 0 && !company) {
-      company = mSegments[jobIdx - 1];
+      company = mSegments[jobIdx - 1].toLowerCase();
     }
 
     if (company && jobId) return `greenhouse:${company}:${jobId}`;
@@ -93,6 +99,7 @@ function isSpecificJobPage(inputUrl) {
   if (/\/jobs\/\d+/i.test(url)) return true;
   if (/[?&#](?:token|gh_jid)=\d+/i.test(url)) return true;
   if (/job_app/i.test(url)) return true;
+  if (/job_post/i.test(url)) return true;
   return false;
 }
 

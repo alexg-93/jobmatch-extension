@@ -29,7 +29,7 @@ Powered by **Google Gemini Cloud**, on-device **Chrome Gemini Nano**, or local o
   - **Drushim (דרושים)**: Israeli tech job postings (`https://www.drushim.co.il/job/*`).
   - **AllJobs (אולג'ובס)**: Dedicated job pages (`https://www.alljobs.co.il/Search/UploadSingle.aspx?JobID=*` and `/jobs/*`). Scoped container isolation prevents SEO sidebar and similar-jobs bleed.
   - **Comeet**: Tech career portals and company job boards (`https://comeet.com/jobs/*` and `https://*.comeet.com/jobs/*`).
-  - **Greenhouse**: Top-tier ATS company boards (`https://boards.greenhouse.io/*`).
+  - **Greenhouse**: Top-tier ATS company boards (`https://boards.greenhouse.io/*`, `https://job-boards.greenhouse.io/*`, and `https://*.greenhouse.io/*`).
 - **📊 360-Degree Feedback & Experience Gap Analysis**:
   - 🟢 **Key Strengths**: Highlights where your skills and accomplishments match or exceed the job qualifications.
   - ⚠️ **Gaps & Weaknesses**: Clear deficit identification including **Experience Gap Analysis** (e.g. role asks for 5+ years vs 4 years detected, or notes an experience advantage when you exceed requirements).
@@ -90,6 +90,12 @@ popup/
 ```
 
 ## Changelog
+
+### v0.11.2
+- **Greenhouse Modern Job Boards Support**: Added full support for `https://job-boards.greenhouse.io/<company>/jobs/<id>` and all `*.greenhouse.io` subdomains (e.g. `job-boards.eu.greenhouse.io`).
+- **Updated Host Permissions & Content Script Matches**: Configured `manifest.json` with `job-boards.greenhouse.io/*` and `*.greenhouse.io/*`.
+- **Targeted DOM Selectors**: Added priority title selectors (`h1.section-header`, `.job__title h1`) and description selectors (`.job__description.body`, `.job__description`, `.job-post-container .job__description`).
+- **Normalized URL & Cache Key Handling**: Consistent `greenhouse:<company>:<id>` cache keys across both legacy `boards.greenhouse.io` and modern `job-boards.greenhouse.io` domains.
 
 ### v0.11.1
 - **Extended Local LLM Timeout (180s / 3 minutes)**: Raised timeout in `callOpenAiCompat` and `callOllama` from 45s to 180s, preventing client disconnections while local reasoning models (like `Phi-4-reasoning-plus`, `DeepSeek-R1`, `Qwen`) generate thinking tokens.

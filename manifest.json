@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "JobMatch — Resume Matcher (LinkedIn, Drushim, AllJobs, Comeet, Greenhouse)",
-  "version": "0.11.1",
+  "version": "0.11.2",
   "description": "Upload your resume once. See your match score, strengths, and gap analysis on LinkedIn, Drushim, AllJobs, Comeet, and Greenhouse, powered by Gemini AI and local models.",
   "permissions": ["storage", "offscreen"],
   "host_permissions": [
@@ -14,6 +14,8 @@
     "https://*.comeet.com/*",
     "https://comeet.com/*",
     "https://boards.greenhouse.io/*",
+    "https://job-boards.greenhouse.io/*",
+    "https://*.greenhouse.io/*",
     "http://localhost/*",
     "http://127.0.0.1/*",
     "https://generativelanguage.googleapis.com/*"
@@ -73,7 +75,9 @@
     },
     {
       "matches": [
-        "https://boards.greenhouse.io/*"
+        "https://boards.greenhouse.io/*",
+        "https://job-boards.greenhouse.io/*",
+        "https://*.greenhouse.io/*"
       ],
       "js": ["content/widget.js", "content/greenhouse.js"],
       "css": ["content/widget.css"],
