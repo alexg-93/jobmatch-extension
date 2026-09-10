@@ -95,7 +95,6 @@ function populateSelectedProfile() {
 
   $("resumeText").value = curr.text || "";
   $("customSkills").value = (curr.customSkills || []).join(", ");
-  $("profileYearsInput").value = (curr.yearsOfExperience !== null && curr.yearsOfExperience !== undefined) ? curr.yearsOfExperience : "";
   if (curr.text) {
     $("resumeInfo").textContent =
       `Profile "${curr.name}": ${curr.text.length} chars, ${curr.skills?.length || 0} skills` +
@@ -603,8 +602,6 @@ $("saveBtn").addEventListener("click", async () => {
 
   try {
     const customSkills = $("customSkills").value.split(",").map((s) => s.trim()).filter(Boolean);
-    const yearsVal = $("profileYearsInput").value.trim();
-    const yearsOfExperience = yearsVal ? parseFloat(yearsVal) : null;
     setStatus("Extracting skills for profile…");
     const skillResp = await sendMessage({ type: "EXTRACT_SKILLS", payload: { resumeText: text, customSkills } });
     const skills = skillResp?.skills || [];
@@ -617,7 +614,7 @@ $("saveBtn").addEventListener("click", async () => {
         text,
         skills,
         customSkills,
-        yearsOfExperience
+        yearsOfExperience: curr.yearsOfExperience
       }
     });
 
@@ -651,7 +648,6 @@ $("clearBtn").addEventListener("click", async () => {
   $("resumeFile").value = "";
   $("resumeText").value = "";
   $("customSkills").value = "";
-  $("profileYearsInput").value = "";
   setStatus(`Cleared resume text for profile "${curr.name}".`);
   loadExisting();
 });
