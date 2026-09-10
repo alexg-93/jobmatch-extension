@@ -38,10 +38,11 @@ Powered by **Google Gemini Cloud**, on-device **Chrome Gemini Nano**, or local o
 - **👥 Multiple Resume Profiles**:
   - Save and manage up to 3 distinct resume profiles (e.g. *Full Stack Developer*, *Frontend Specialist*, *Team Lead*) in the popup.
   - On-the-fly profile switcher dropdown directly inside the floating job widget to compare which resume scores higher on any listing.
-  - Profile-scoped caching (`cache:v3:<profileId>:<url>`) with zero-latency switching.
+  - Profile-scoped caching (`cache:v6:<profileId>:<url>`, indexed per profile) with zero-latency switching.
 - **🔄 Auto & Manual Scanning Modes**:
   - **Auto Mode**: Automatically evaluates job postings in the background as you browse.
   - **Manual Mode**: Displays a floating draggable `✨ Scan Job` button (`⋮⋮` drag handle) with boundary clamping and dismiss button.
+- **🔃 Manual Refresh**: A ⟳ button next to close on the results panel forces a fresh, non-cached re-analysis of the current job.
 - **🏷️ Scanned Job Title in Header**: Displays the exact job title analyzed in the widget header and during loading.
 - **🇮🇱 Hebrew & Unicode Support**: Built-in word boundary matching with unicode regex and support for attached Hebrew prepositions (`ב-`, `ה-`, `ו-`, `ל-`, `מ-`, `ש-`, `כ-`) common on Drushim and AllJobs (e.g. `ב-React`, `שנה ניסיון`, `שנתיים ניסיון`).
 - **🔤 Skill Synonyms & Canonicalization**: Smart normalization for common variants (e.g. `React` ↔ `ReactJS`, `NodeJS` ↔ `Node.js`, `Golang` ↔ `Go`, `k8s` ↔ `Kubernetes`, `Postgres` ↔ `PostgreSQL`, `Rabbit MQ` ↔ `RabbitMQ`).
@@ -71,25 +72,52 @@ Powered by **Google Gemini Cloud**, on-device **Chrome Gemini Nano**, or local o
 ```
 manifest.json                     → MV3 extension manifest with site permissions & Gemini API access
 content/
-  widget.js, widget.css           → Floating results card, manual scan trigger & profile switcher
-  linkedin.js                     → LinkedIn job scraper & single-job view router
-  drushim.js                      → Drushim job scraper & single-job view router
+  widget.js, widget.css           → Floating results card, manual scan trigger, refresh button & profile switcher
+  base-adapter.js                 → Shared driver for every site adapter: polling/MutationObserver scheduling,
+                                     scan-mode handling, analyze() round-trip to the background worker
+  linkedin.js                     → LinkedIn selectors, extraction & job-key parsing (single-job view routing)
+  drushim.js                      → Drushim selectors, extraction & job-key parsing
   alljobs.js                      → AllJobs DOM adapter with container scoping & title cleaning
   comeet.js                       → Comeet career portal & company board adapter
   greenhouse.js                   → Greenhouse ATS board adapter
 background.js                     → Service worker: AI routing hub (Gemini, Ollama, LM Studio, Nano),
-                                     multi-tier fallback, resume storage & profile-scoped cache
+                                     multi-tier fallback, resume storage & indexed profile-scoped cache
 offscreen/
   offscreen.html, offscreen.js    → Isolated sandbox executing Chrome's window.ai LanguageModel API
 shared/
   matcher.js                      → Hybrid grounding engine, skills dictionary, experience gap analyzer,
-                                     prompt builder, think-tag stripping & JSON parser
+                                     tiered prompt builder, AI-output normalization, think-tag stripping & JSON parser
 popup/
   popup.html, popup.js, popup.css → Extension settings UI: AI engine selector, model discovery,
                                      API key manager, resume profile tabs & scanning mode toggle
+test/
+  matcher.test.js                 → Unit tests for shared/matcher.js (node --test)
+eslint.config.js, package.json    → Lint/test tooling (npm test / npm run lint)
+```
+
+## Development
+
+No build step — this is vanilla JS loaded directly by Chrome. `npm install` only pulls in dev tooling (tests + lint), never shipped with the extension.
+
+```bash
+npm install       # dev tooling only (eslint; node's built-in test runner needs nothing extra)
+npm test          # run the shared/matcher.js unit test suite
+npm run lint      # ESLint across the whole project
+npm run lint:fix  # ESLint with autofix
 ```
 
 ## Changelog
+
+### v0.11.3
+- **Test Suite & Tooling**: Added a 61-test unit suite for `shared/matcher.js` (`npm test`, Node's built-in test runner) covering keyword matching, grounding, experience-gap parsing, and prompt building, plus an ESLint flat config (`npm run lint`).
+- **Content-Script Consolidation**: Extracted `content/base-adapter.js` as a shared driver for all 5 site adapters, removing ~460 lines of duplicated polling/scan-mode/analyze logic that used to be copy-pasted across `linkedin.js`, `drushim.js`, `alljobs.js`, `comeet.js`, and `greenhouse.js`.
+- **Cache Indexing**: Replaced full-storage (`chrome.storage.local.get(null)`) scans on every profile save/delete with a per-profile `cacheIndex`, capped at 300 entries per profile. Also fixed a latent bug where that invalidation was silently a no-op due to a stale `cache:v3:` prefix check against the actual `cache:v5:` keys (cache bumped to `v6`).
+- **MutationObserver Scheduling**: Replaced the unconditional 1.5s DOM poll with a debounced `MutationObserver` (plus a 4s safety-net interval), reacting to actual page changes instead of polling on a fixed timer.
+- **AI-Output Validation**: Provider JSON responses now pass through `normalizeAiMatchResult` — clamping `matchPercent` to 0-100 and coercing list fields to arrays — before reaching the UI or grounding logic.
+- **Prompt Hardening**: `buildMatchPrompt`/`buildSkillExtractionPrompt` now delimit the scraped job posting and resume text with explicit "treat as data, not instructions" framing to resist prompt injection from job postings, backed by a runtime `matchPercent` sanity check (`reconcileMatchPercent`) that pulls an implausible AI score back toward the deterministic keyword-match baseline.
+- **Tiered Prompting**: Gemini Cloud now gets a richer prompt (scoring rubric, required-vs-nice-to-have weighting, a worked few-shot example) than local/on-device providers, which stay lean to avoid burning Chrome Nano's small context window or local models' response time.
+- **Manual Refresh Button**: Added a ⟳ button next to close on the results panel to force a fresh, non-cached analysis of the current job/profile.
+- **Keyword-Matching Fixes**: Versioned or concatenated tech names now match their bare form — `HTML5` → HTML, `CSS3` → CSS, `TailwindCSS` → Tailwind CSS — previously reported as missing even when present in the resume, due to the word-boundary regex requiring a non-letter/digit character immediately after a match.
 
 ### v0.11.2
 - **Greenhouse Modern Job Boards Support**: Added full support for `https://job-boards.greenhouse.io/<company>/jobs/<id>` and all `*.greenhouse.io` subdomains (e.g. `job-boards.eu.greenhouse.io`).
