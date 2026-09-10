@@ -686,6 +686,11 @@ textarea { resize: vertical; }
   margin-top: 1px;
 }
 
+.jm-app-source {
+  font-weight: 700;
+  color: #6366f1;
+}
+
 .jm-app-status-select {
   font-size: 10.5px;
   font-weight: 700;

@@ -687,6 +687,13 @@ $("clearBtn").addEventListener("click", async () => {
 // --- Application tracker ---
 
 const STATUS_LABELS = { saved: "Saved", applied: "Applied", interviewing: "Interviewing", rejected: "Rejected" };
+const SOURCE_LABELS = { linkedin: "LinkedIn", drushim: "Drushim", alljobs: "AllJobs", comeet: "Comeet", greenhouse: "Greenhouse" };
+
+function sourceFromJobKey(jobKey) {
+  const prefix = (jobKey || "").split(":")[0];
+  if (SOURCE_LABELS[prefix]) return SOURCE_LABELS[prefix];
+  return prefix ? prefix.charAt(0).toUpperCase() + prefix.slice(1) : "";
+}
 let currentAppFilter = "all";
 let allApplications = [];
 
@@ -737,6 +744,7 @@ function renderApplicationsList() {
     const pct = typeof a.matchPercent === "number" ? a.matchPercent : null;
     const pctLabel = pct === null ? "—" : `${pct}%`;
     const ringColor = pct === null ? "#cbd5e1" : pct >= 75 ? "#22c55e" : pct >= 45 ? "#f59e0b" : "#ef4444";
+    const source = sourceFromJobKey(a.jobKey);
     return `
       <div class="jm-app-card" data-job-key="${escapeHtml(a.jobKey)}">
         <div class="jm-app-ring" style="--jm-app-pct:${pct ?? 0};--jm-app-ring-color:${ringColor}">
@@ -744,7 +752,9 @@ function renderApplicationsList() {
         </div>
         <div class="jm-app-info">
           <div class="jm-app-title">${escapeHtml(a.title || "Untitled job")}</div>
-          <div class="jm-app-meta">${escapeHtml(relativeTime(a.updatedAt))}${a.profileName ? ` · ${escapeHtml(a.profileName)}` : ""}</div>
+          <div class="jm-app-meta">
+            ${source ? `<span class="jm-app-source">${escapeHtml(source)}</span> · ` : ""}${escapeHtml(relativeTime(a.updatedAt))}${a.profileName ? ` · ${escapeHtml(a.profileName)}` : ""}
+          </div>
         </div>
         <select class="jm-app-status-select" data-job-key="${escapeHtml(a.jobKey)}">
           ${Object.entries(STATUS_LABELS).map(([val, label]) => `<option value="${val}" ${val === a.status ? "selected" : ""}>${label}</option>`).join("")}
