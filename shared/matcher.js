@@ -361,7 +361,7 @@
     const discardedAiSkills = [];
 
     // 1. Process AI skills with STRICT GROUNDING check against the job posting
-    for (const item of aiSkills || []) {
+    for (const item of (Array.isArray(aiSkills) ? aiSkills : [])) {
       const clean = (item || "").trim();
       if (!clean) continue;
       const key = canonicalize(clean.toLowerCase());
@@ -874,6 +874,35 @@
     }
   }
 
+  // Any AI provider can return malformed or out-of-range JSON (a reasoning
+  // model hallucinating matchPercent: 140, a field coming back as a string
+  // instead of an array, etc). Normalize once, right after parsing, so
+  // every downstream consumer can trust the shape.
+  function clampInt(value, min, max) {
+    const n = typeof value === "number" ? value : parseFloat(value);
+    if (!Number.isFinite(n)) return null;
+    return Math.min(max, Math.max(min, Math.round(n)));
+  }
+
+  function toStringArray(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map((v) => (typeof v === "string" ? v : (v == null ? "" : String(v))))
+      .map((v) => v.trim())
+      .filter(Boolean);
+  }
+
+  function normalizeAiMatchResult(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    return {
+      matchPercent: clampInt(raw.matchPercent, 0, 100),
+      strengths: toStringArray(raw.strengths),
+      gaps: toStringArray(raw.gaps),
+      missingSkills: toStringArray(raw.missingSkills),
+      suggestions: toStringArray(raw.suggestions)
+    };
+  }
+
   function naiveSkillExtraction(resumeText, customSkills) {
     const dictionary = DEFAULT_SKILLS.concat(customSkills || []);
     const rawMentions = findMentions(resumeText, dictionary);
@@ -896,6 +925,7 @@
     buildMatchPrompt,
     buildSkillExtractionPrompt,
     extractJson,
+    normalizeAiMatchResult,
     naiveSkillExtraction,
     normalizeWhitespace,
     smartTrimText,

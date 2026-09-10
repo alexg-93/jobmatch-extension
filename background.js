@@ -663,6 +663,14 @@ async function analyzeJob({ url, title, description, profileId }) {
     }
   }
 
+  // Every provider's raw JSON goes through the same normalization before use:
+  // clamp matchPercent to 0-100, and coerce each list field to an array of
+  // trimmed strings so a malformed/reasoning-model response can't propagate
+  // an out-of-range score or a non-array field into the UI or the grounding logic.
+  if (aiRawResult) {
+    aiRawResult = self.JobMatch.normalizeAiMatchResult(aiRawResult);
+  }
+
   let result = null;
   if (aiRawResult) {
     // Hybrid merge with strict job-posting grounding validation:

@@ -309,6 +309,46 @@ describe("buildMatchPrompt", () => {
   });
 });
 
+describe("normalizeAiMatchResult", () => {
+  test("clamps an out-of-range matchPercent into 0-100", () => {
+    const result = JobMatch.normalizeAiMatchResult({ matchPercent: 140, strengths: [], gaps: [], missingSkills: [], suggestions: [] });
+    assert.equal(result.matchPercent, 100);
+  });
+
+  test("clamps a negative matchPercent to 0", () => {
+    const result = JobMatch.normalizeAiMatchResult({ matchPercent: -20 });
+    assert.equal(result.matchPercent, 0);
+  });
+
+  test("falls back to null for a non-numeric matchPercent", () => {
+    const result = JobMatch.normalizeAiMatchResult({ matchPercent: "high" });
+    assert.equal(result.matchPercent, null);
+  });
+
+  test("coerces non-array list fields to empty arrays instead of throwing", () => {
+    const result = JobMatch.normalizeAiMatchResult({ matchPercent: 80, missingSkills: "SQL, React", strengths: null });
+    assert.deepEqual(result.missingSkills, []);
+    assert.deepEqual(result.strengths, []);
+  });
+
+  test("trims and drops blank entries from list fields", () => {
+    const result = JobMatch.normalizeAiMatchResult({ suggestions: ["  Learn Docker.  ", "", "   "] });
+    assert.deepEqual(result.suggestions, ["Learn Docker."]);
+  });
+
+  test("returns null for a non-object input", () => {
+    assert.equal(JobMatch.normalizeAiMatchResult(null), null);
+    assert.equal(JobMatch.normalizeAiMatchResult("not an object"), null);
+  });
+});
+
+describe("mergeMissingSkills defensive handling", () => {
+  test("does not iterate a string's characters if aiSkills is malformed (non-array)", () => {
+    const merged = JobMatch.mergeMissingSkills("SQL, React", ["Docker"], "Uses Docker.", ["Docker"]);
+    assert.deepEqual(Array.from(merged), ["Docker"]);
+  });
+});
+
 describe("naiveSkillExtraction", () => {
   test("extracts recognizable skills from resume text", () => {
     const skills = JobMatch.naiveSkillExtraction("Proficient in Python, Docker, and stakeholder management.", []);
