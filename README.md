@@ -135,6 +135,74 @@ npm run lint:fix  # ESLint with autofix
 
 ## 🏗 Architecture
 
+### Component overview
+
+```mermaid
+flowchart TD
+    subgraph JobSite["Job site tab (LinkedIn · Drushim · AllJobs · Comeet · Greenhouse)"]
+        Widget["widget.js<br/>floating results panel"]
+        Adapter["base-adapter.js + site adapter<br/>MutationObserver, selectors, job-key parsing"]
+    end
+
+    subgraph BGProc["Extension background"]
+        BG["background.js<br/>service worker · message hub"]
+        Matcher["shared/matcher.js<br/>keyword match · grounding · prompt builder"]
+        Offscreen["offscreen.js<br/>Chrome Nano sandbox"]
+        Storage[("chrome.storage.local<br/>profiles · AI settings · indexed cache")]
+    end
+
+    PopupUI["popup.html / popup.js<br/>AI engine · profiles · resume upload"]
+
+    subgraph Providers["AI providers"]
+        Gemini["Gemini Cloud API"]
+        Ollama["Ollama (local)"]
+        LMStudio["LM Studio / OpenAI-compat (local)"]
+        Nano["Chrome Gemini Nano (on-device)"]
+    end
+
+    Adapter -- "ANALYZE_JOB" --> BG
+    BG <--> Storage
+    BG --> Matcher
+    BG -- "chosen provider" --> Gemini
+    BG -- "chosen provider" --> Ollama
+    BG -- "chosen provider" --> LMStudio
+    BG -- "AI_MATCH_JOB" --> Offscreen --> Nano
+    BG -- "result" --> Adapter --> Widget
+    PopupUI <-- "GET/SAVE_PROFILE, AI settings, skill extraction" --> BG
+```
+
+### Analyzing a job — request flow
+
+```mermaid
+sequenceDiagram
+    participant CS as Content script<br/>(base-adapter.js)
+    participant BG as background.js
+    participant M as matcher.js
+    participant Cache as chrome.storage.local
+    participant AI as AI provider<br/>(Gemini / Ollama / LM Studio / Nano)
+
+    CS->>CS: MutationObserver detects a job page,<br/>extracts title + description
+    CS->>BG: ANALYZE_JOB {url, title, description, profileId}
+    BG->>Cache: getCachedResult(url, profileId)
+    alt cache hit (and no forced refresh)
+        Cache-->>BG: cached result
+    else cache miss
+        BG->>M: keywordMatch() — deterministic baseline
+        BG->>M: buildMatchPrompt() — tiered lean/rich by provider
+        BG->>AI: send prompt to chosen provider
+        opt provider fails or times out
+            BG->>AI: fall back to Chrome Nano, then keyword-only
+        end
+        AI-->>BG: raw JSON response
+        BG->>M: normalizeAiMatchResult(), mergeMissingSkills(),<br/>filterGroundedSuggestions(), reconcileMatchPercent()
+        BG->>Cache: setCachedResult()
+    end
+    BG-->>CS: final result
+    CS->>CS: widget.js renders the results panel
+```
+
+### File layout
+
 <details>
 <summary>Click to expand the file layout</summary>
 
