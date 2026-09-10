@@ -22,7 +22,7 @@
 
 #jobmatch-widget-root .jm-panel {
   width: 300px;
-  max-height: 70vh;
+  max-height: 82vh;
   overflow-y: auto;
   background: #ffffff;
   border-radius: 18px;
@@ -86,7 +86,7 @@
 
 #jobmatch-widget-root .jm-header-band {
   background: var(--jm-gradient);
-  padding: 14px 16px 16px;
+  padding: 12px 16px 14px;
 }
 
 #jobmatch-widget-root .jm-header {
@@ -159,7 +159,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 14px;
+  margin-top: 10px;
 }
 
 #jobmatch-widget-root .jm-score-ring {
@@ -206,7 +206,7 @@
 /* --- Body --- */
 
 #jobmatch-widget-root .jm-body {
-  padding: 14px 16px 16px;
+  padding: 12px 16px 14px;
 }
 
 #jobmatch-widget-root .jm-profile-bar {
@@ -216,7 +216,7 @@
   background: #f4f5f7;
   padding: 5px 10px;
   border-radius: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 #jobmatch-widget-root .jm-profile-label {
@@ -254,7 +254,7 @@
   background: #fef3c7;
   border-radius: 10px;
   padding: 6px 10px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 #jobmatch-widget-root .jm-note {
@@ -281,7 +281,7 @@
   line-height: 1.5;
 }
 
-#jobmatch-widget-root .jm-section { margin-top: 14px; }
+#jobmatch-widget-root .jm-section { margin-top: 11px; }
 #jobmatch-widget-root .jm-section:first-child { margin-top: 0; }
 
 #jobmatch-widget-root .jm-section-title {
@@ -290,7 +290,7 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #94a3b8;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 #jobmatch-widget-root .jm-title--strengths { color: #16a34a; }
@@ -321,7 +321,7 @@
   list-style: none !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 8px !important;
+  gap: 6px !important;
 }
 
 #jobmatch-widget-root .jm-item {
@@ -375,7 +375,7 @@
   list-style: none !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 9px !important;
+  gap: 7px !important;
 }
 
 #jobmatch-widget-root .jm-suggestions li,

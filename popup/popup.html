@@ -128,15 +128,13 @@
       <input type="file" id="resumeFile" accept=".pdf,.txt" />
 
       <label class="field-label" for="resumeText">Or paste resume text</label>
-      <textarea id="resumeText" rows="8" placeholder="Paste your resume text here if you'd rather not upload a file…"></textarea>
+      <textarea id="resumeText" rows="5" placeholder="Paste your resume text here if you'd rather not upload a file…"></textarea>
 
       <label class="field-label" for="customSkills">Extra skills to track (comma separated, optional)</label>
-      <input type="text" id="customSkills" placeholder="e.g. React Native, Zustand, TanStack Query" />
-      <p class="hint">Used by the offline fallback matcher — helps it recognize skills specific to your field.</p>
+      <input type="text" id="customSkills" placeholder="e.g. React Native, Zustand, TanStack Query" title="Used by the offline fallback matcher — helps it recognize skills specific to your field." />
 
       <label class="field-label" for="profileYearsInput">Total Years of Experience (optional)</label>
-      <input type="number" id="profileYearsInput" min="0" max="50" step="0.5" placeholder="e.g. 4 (auto-detected if blank)" />
-      <p class="hint">Used for experience gap analysis (e.g. comparing your experience vs role requirements).</p>
+      <input type="number" id="profileYearsInput" min="0" max="50" step="0.5" placeholder="e.g. 4 (auto-detected if blank)" title="Used for experience gap analysis (comparing your experience vs role requirements)." />
 
       <div class="button-row">
         <button id="saveBtn" class="btn btn-primary">Save resume</button>
