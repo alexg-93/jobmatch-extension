@@ -615,7 +615,8 @@ async function analyzeJob({ url, title, description, profileId, forceRefresh }) 
         jobTitle: title,
         jobText: description,
         detectedJobSkills: detMatch.detectedJobSkills || [],
-        yearsOfExperience: targetProfile.yearsOfExperience
+        yearsOfExperience: targetProfile.yearsOfExperience,
+        richness: "rich" // cloud provider: ample context/latency budget for the few-shot example
       });
       const responseText = await callGeminiCloud({
         prompt,

@@ -325,6 +325,34 @@ describe("buildMatchPrompt", () => {
     assert.match(prompt, /UNTRUSTED CONTENT WARNING/);
     assert.match(prompt, /DATA ONLY/);
   });
+
+  test("always includes the matchPercent rubric and required-vs-nice-to-have weighting, regardless of tier", () => {
+    const prompt = JobMatch.buildMatchPrompt("My resume text", "Backend Engineer", "Job description text", [], null);
+    assert.match(prompt, /Score using this rubric/);
+    assert.match(prompt, /Weight required qualifications far more heavily/);
+  });
+
+  test("lean tier (default) omits the few-shot example and rich-only instructions", () => {
+    const prompt = JobMatch.buildMatchPrompt({
+      resumeText: "My resume text",
+      jobTitle: "Backend Engineer",
+      jobText: "Job description text"
+    });
+    assert.doesNotMatch(prompt, /WORKED EXAMPLE/);
+    assert.doesNotMatch(prompt, /never give generic career advice/);
+  });
+
+  test("rich tier (e.g. Gemini) includes the few-shot example and extra instructions", () => {
+    const prompt = JobMatch.buildMatchPrompt({
+      resumeText: "My resume text",
+      jobTitle: "Backend Engineer",
+      jobText: "Job description text",
+      richness: "rich"
+    });
+    assert.match(prompt, /WORKED EXAMPLE/);
+    assert.match(prompt, /never give generic career advice/);
+    assert.match(prompt, /appears cut off mid-sentence/);
+  });
 });
 
 describe("buildSkillExtractionPrompt", () => {
