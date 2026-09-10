@@ -237,6 +237,18 @@ eslint.config.js, package.json    Lint/test tooling (npm test / npm run lint)
 ## 📝 Changelog
 
 <details open>
+<summary><strong>v0.13.0</strong> — Widget & Scan-Mode Bug Fixes</summary>
+
+Bug fixes found via live testing, no feature changes:
+
+- **Widget header actions getting hidden behind a long job title**: a flexbox `min-width: 0` gap on the header's title container meant a long job title could push the refresh/close buttons out of view instead of truncating with an ellipsis. Also widened the results panel 300px → 360px for more breathing room.
+- **Loading pill's job title and close button invisible** (white text on white background): a CSS specificity tie let the gradient-header's white-text color rules silently override the loading-pill-specific gray ones.
+- **Manual scan mode being ignored on page load**: `chrome.storage.local.get("scanMode")` is asynchronous, but the first scan tick ran before it resolved, always seeing the "auto" default first — deferred ticking until the real stored value is known.
+- **Scan-mode toggle not affecting the currently-open job without a reload**: switching modes now resets the "already analyzed" flag so the current job is re-evaluated immediately under the new mode, instead of only affecting the next job visited.
+
+</details>
+
+<details>
 <summary><strong>v0.12.0</strong> — Sleek Modern UI/UX Redesign</summary>
 
 - Full visual redesign of both the results widget and config popup — vibrant violet gradient accent (`#6366f1` → `#8b5cf6` → `#a855f7`), brainstormed and approved via mockups before implementation.
