@@ -1,7 +1,8 @@
 // content/drushim.js
 // Drushim job detail view loads via client-side routing.
-// We monitor for job ID changes, wait for the job content to render,
-// analyze once, and hold the result.
+// window.JobMatchAdapter (base-adapter.js) handles polling, scan-mode, and
+// the analyze round-trip; this file only defines Drushim-specific
+// extraction and job identity.
 
 const TITLE_SELECTORS = [
   ".job-name",
@@ -77,146 +78,15 @@ function isSpecificJobPage() {
   return /^\/job\//i.test(location.pathname);
 }
 
-let currentJobKey = null;
-let analyzedJobKey = null;
-let isAnalyzing = false;
-let dismissedManualKey = null;
-let scanMode = "auto";
-let tickInterval = null;
-
-try {
-  chrome.storage?.local?.get("scanMode", (data) => {
-    if (data?.scanMode) scanMode = data.scanMode;
+if (typeof window !== "undefined" && window.JobMatchAdapter) {
+  window.JobMatchAdapter.start({
+    extractJob,
+    jobKeyFromUrl,
+    isSpecificJobPage,
+    minDescriptionLength: 200
   });
-} catch (e) {
-  // context invalidated
 }
 
-function analyze(job, key, profileId = null) {
-  if (!chrome.runtime?.id) {
-    if (tickInterval) clearInterval(tickInterval);
-    window.JobMatchWidget?.renderError?.("Extension updated. Please refresh the page.");
-    return;
-  }
-
-  isAnalyzing = true;
-  window.JobMatchWidget.renderLoading(job.title);
-
-  try {
-    chrome.runtime.sendMessage(
-      { type: "ANALYZE_JOB", payload: { url: key, title: job.title, description: job.description, profileId } },
-      (result) => {
-        isAnalyzing = false;
-        if (!chrome.runtime?.id || chrome.runtime.lastError) {
-          analyzedJobKey = key;
-          window.JobMatchWidget?.renderError?.("Extension updated. Please refresh the page.");
-          if (tickInterval) clearInterval(tickInterval);
-          return;
-        }
-        if (currentJobKey !== key) return; // stale response
-
-        if (!result) {
-          analyzedJobKey = key;
-          window.JobMatchWidget.renderError("No response from extension — try reloading the page.");
-          return;
-        }
-        if (result.error) {
-          if (result.engine !== "none") {
-            analyzedJobKey = key;
-          }
-          window.JobMatchWidget.renderError(result.error);
-          return;
-        }
-
-        analyzedJobKey = key;
-        window.JobMatchWidget.renderResult(result, (newProfileId) => {
-          analyze(job, key, newProfileId);
-        });
-      }
-    );
-  } catch (err) {
-    isAnalyzing = false;
-    if (tickInterval) clearInterval(tickInterval);
-    window.JobMatchWidget?.renderError?.("Extension updated. Please refresh the page.");
-  }
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { jobKeyFromUrl, isSpecificJobPage, extractJob };
 }
-
-function tick() {
-  if (!chrome.runtime?.id) {
-    if (tickInterval) clearInterval(tickInterval);
-    return;
-  }
-
-  // Never scan search/listing/catalog pages (e.g. /jobs/search/*)
-  if (!isSpecificJobPage()) {
-    window.JobMatchWidget?.hide?.();
-    window.JobMatchWidget?.hideManualButton?.();
-    return;
-  }
-
-  const job = extractJob();
-  if (!job.description || job.description.length < 200) {
-    return;
-  }
-
-  const key = jobKeyFromUrl();
-
-  if (key !== currentJobKey) {
-    currentJobKey = key;
-    analyzedJobKey = null;
-    dismissedManualKey = null;
-  }
-
-  if (scanMode === "manual") {
-    if (analyzedJobKey === key) {
-      window.JobMatchWidget?.hideManualButton?.();
-      return;
-    }
-    if (isAnalyzing) {
-      window.JobMatchWidget?.hideManualButton?.();
-      return;
-    }
-    if (dismissedManualKey === key) {
-      return;
-    }
-    // Display floating manual scan button on top-right
-    window.JobMatchWidget?.showManualButton?.(
-      () => {
-        window.JobMatchWidget?.hideManualButton?.();
-        analyze(job, key);
-      },
-      () => {
-        dismissedManualKey = key;
-      }
-    );
-    return;
-  }
-
-  // In auto mode, ensure manual trigger is hidden and proceed with automatic analysis
-  window.JobMatchWidget?.hideManualButton?.();
-
-  // Already analyzed and outputted: do not repeat
-  if (analyzedJobKey === key) return;
-
-  // Analysis is currently in progress: wait
-  if (isAnalyzing) return;
-
-  analyze(job, key);
-}
-
-chrome.storage?.onChanged?.addListener((changes, area) => {
-  if (area === "local") {
-    if (changes.resume || changes.activeProfileId || changes.profiles) {
-      analyzedJobKey = null;
-      tick();
-    }
-    if (changes.scanMode) {
-      scanMode = changes.scanMode.newValue || "auto";
-      tick();
-    }
-  }
-});
-
-tickInterval = setInterval(tick, 1500);
-tick();
-
