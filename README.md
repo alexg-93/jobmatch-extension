@@ -108,6 +108,15 @@ npm run lint:fix  # ESLint with autofix
 
 ## Changelog
 
+### v0.12.0
+- **Sleek Modern UI/UX Redesign**: Full visual redesign of both the results widget and config popup — vibrant violet gradient accent (`#6366f1` → `#8b5cf6` → `#a855f7`), brainstormed and approved via mockups before implementation.
+  - **Results widget**: gradient header band, circular conic-gradient score ring (still color-coded green/amber/red by match quality), icon-chip strength/gap bullets, restyled loading pill and error state, repositioned to the top-right corner (matching the manual-scan button).
+  - **Config popup**: reorganized from one long flat form into grouped gradient-accented cards (AI Engine / Scanning Mode / Resume Profiles / Resume), pill-style segmented toggles, widened from 320px to 400px.
+  - **Resume upload dropzone**: replaced the raw unstyled `<input type="file">` with a proper styled dropzone (dashed border, icon, filename display) with real drag-and-drop support.
+  - **Spacing pass**: tightened padding/margins throughout both surfaces to reduce scrolling.
+  - **Removed** the manual "Total Years of Experience" override field from the popup — auto-detection from resume text still covers experience-gap analysis; any previously-stored value is preserved, just no longer editable from the UI.
+  - No functional/logic changes — every element ID and event listener the JS depends on is unchanged.
+
 ### v0.11.3
 - **Test Suite & Tooling**: Added a 61-test unit suite for `shared/matcher.js` (`npm test`, Node's built-in test runner) covering keyword matching, grounding, experience-gap parsing, and prompt building, plus an ESLint flat config (`npm run lint`).
 - **Content-Script Consolidation**: Extracted `content/base-adapter.js` as a shared driver for all 5 site adapters, removing ~460 lines of duplicated polling/scan-mode/analyze logic that used to be copy-pasted across `linkedin.js`, `drushim.js`, `alljobs.js`, `comeet.js`, and `greenhouse.js`.
