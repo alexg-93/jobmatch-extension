@@ -69,18 +69,19 @@
   color: #1f2937;
 }
 
-#jobmatch-widget-root .jm-scanned-title--loading {
+#jobmatch-widget-root .jm-scanned-title.jm-scanned-title--loading {
   font-weight: 500;
   color: #94a3b8;
 }
 
-#jobmatch-widget-root .jm-close--loading {
+#jobmatch-widget-root .jm-close.jm-close--loading {
   color: #cbd5e1;
+  background: transparent;
   width: 26px;
   height: 26px;
 }
 
-#jobmatch-widget-root .jm-close--loading:hover { color: #64748b; background: #f3f4f6; }
+#jobmatch-widget-root .jm-close.jm-close--loading:hover { color: #64748b; background: #f3f4f6; }
 
 /* --- Header band (gradient) --- */
 
