@@ -125,7 +125,12 @@
 
     <div class="jm-card">
       <label class="field-label" for="resumeFile" style="margin-top:0;">Upload resume for this profile (PDF or .txt)</label>
-      <input type="file" id="resumeFile" accept=".pdf,.txt" />
+      <label class="jm-dropzone" for="resumeFile" id="resumeDropzone">
+        <input type="file" id="resumeFile" accept=".pdf,.txt" class="jm-dropzone-input" />
+        <span class="jm-dropzone-icon">📄</span>
+        <span class="jm-dropzone-text" id="resumeFileLabel">Choose a file or drop it here</span>
+        <span class="jm-dropzone-hint">PDF or .txt</span>
+      </label>
 
       <label class="field-label" for="resumeText">Or paste resume text</label>
       <textarea id="resumeText" rows="5" placeholder="Paste your resume text here if you'd rather not upload a file…"></textarea>

@@ -386,12 +386,53 @@ h1 {
   margin: 8px 0 4px;
 }
 
-input[type="file"] {
+.jm-dropzone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
   width: 100%;
   box-sizing: border-box;
-  font-size: 11px;
-  padding: 4px;
-  color: var(--jm-muted);
+  padding: 14px 10px;
+  border: 1.5px dashed #c7d2fe;
+  border-radius: 12px;
+  background: #f5f6ff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.jm-dropzone:hover,
+.jm-dropzone--active {
+  border-color: var(--jm-accent);
+  background: #efeeff;
+}
+
+.jm-dropzone-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.jm-dropzone-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.jm-dropzone-text {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--jm-accent);
+  text-align: center;
+}
+
+.jm-dropzone-hint {
+  font-size: 10px;
+  color: #94a3b8;
 }
 
 input[type="text"],
