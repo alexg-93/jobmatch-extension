@@ -181,6 +181,11 @@
           }
           if (changes.scanMode) {
             scanMode = changes.scanMode.newValue || "auto";
+            // Re-evaluate the current job under the new mode instead of only
+            // affecting the next job visited — without this, switching to
+            // manual on a job that was already auto-analyzed short-circuits
+            // on "already analyzed" and never shows the scan button until reload.
+            analyzedJobKey = null;
             tick();
           }
         }
