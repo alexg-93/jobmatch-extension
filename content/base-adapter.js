@@ -28,16 +28,6 @@
     let debounceTimer = null;
     let observer = null;
 
-    if (typeof chrome !== "undefined") {
-      try {
-        chrome.storage?.local?.get("scanMode", (data) => {
-          if (data?.scanMode) scanMode = data.scanMode;
-        });
-      } catch (e) {
-        // context invalidated
-      }
-    }
-
     function stopPolling() {
       if (tickInterval) {
         clearInterval(tickInterval);
@@ -197,16 +187,37 @@
       });
     }
 
-    if (typeof MutationObserver !== "undefined") {
-      observer = new MutationObserver(scheduleTick);
-      observer.observe(document.documentElement, { childList: true, subtree: true });
+    // Don't start ticking until the real scanMode is known — chrome.storage.local.get
+    // is async, and the very first tick() must not run against the "auto" default
+    // while the actual (possibly "manual") value is still in flight, or it can
+    // auto-analyze and mark the job as already-analyzed before manual mode ever
+    // gets a chance to show its scan button.
+    function startTicking() {
+      if (typeof MutationObserver !== "undefined") {
+        observer = new MutationObserver(scheduleTick);
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+      }
+
+      // Low-frequency safety net: catches route changes that don't trigger an
+      // observable DOM mutation (rare) and the very first render. Far cheaper
+      // than the previous unconditional 1.5s poll.
+      tickInterval = setInterval(tick, 4000);
+      tick();
     }
 
-    // Low-frequency safety net: catches route changes that don't trigger an
-    // observable DOM mutation (rare) and the very first render. Far cheaper
-    // than the previous unconditional 1.5s poll.
-    tickInterval = setInterval(tick, 4000);
-    tick();
+    if (typeof chrome !== "undefined") {
+      try {
+        chrome.storage?.local?.get("scanMode", (data) => {
+          if (data?.scanMode) scanMode = data.scanMode;
+          startTicking();
+        });
+      } catch (e) {
+        // context invalidated
+        startTicking();
+      }
+    } else {
+      startTicking();
+    }
 
     return { tick };
   }
