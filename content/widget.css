@@ -92,25 +92,31 @@
 #jobmatch-widget-root .jm-header-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   flex-shrink: 0;
 }
 
 #jobmatch-widget-root .jm-close,
 #jobmatch-widget-root .jm-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   background: transparent;
-  font-size: 16px;
+  font-size: 20px;
   line-height: 1;
   cursor: pointer;
   color: #9ca3af;
-  padding: 0 2px;
+  padding: 4px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
 }
 
-#jobmatch-widget-root .jm-refresh { font-size: 14px; }
+#jobmatch-widget-root .jm-refresh { font-size: 17px; }
 
 #jobmatch-widget-root .jm-close:hover,
-#jobmatch-widget-root .jm-refresh:hover { color: #374151; }
+#jobmatch-widget-root .jm-refresh:hover { color: #374151; background: #f3f4f6; }
 
 #jobmatch-widget-root .jm-refresh:active { transform: rotate(-45deg); }
 
