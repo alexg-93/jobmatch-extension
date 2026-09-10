@@ -33,13 +33,13 @@
     const root = ensureRoot();
     root.style.display = "block";
     root.innerHTML = `
-      <div class="jm-panel jm-panel--loading">
+      <div class="jm-loading-pill">
         <div class="jm-spinner"></div>
         <div class="jm-loading-text">
           <span>Analyzing match…</span>
-          ${title ? `<div class="jm-scanned-title" title="${escapeHtml(title)}">${escapeHtml(title)}</div>` : ""}
+          ${title ? `<div class="jm-scanned-title jm-scanned-title--loading" title="${escapeHtml(title)}">${escapeHtml(title)}</div>` : ""}
         </div>
-        <button class="jm-close" title="Dismiss">×</button>
+        <button class="jm-close jm-close--loading" title="Dismiss">×</button>
       </div>`;
     root.querySelector(".jm-close")?.addEventListener("click", () => (root.style.display = "none"));
   }
@@ -49,11 +49,22 @@
     root.style.display = "block";
     root.innerHTML = `
       <div class="jm-panel jm-panel--error">
-        <div class="jm-header">
-          <span class="jm-title">JobMatch</span>
-          <button class="jm-close" title="Dismiss">×</button>
+        <div class="jm-header-band">
+          <div class="jm-header">
+            <div class="jm-header-text">
+              <span class="jm-title">JobMatch</span>
+            </div>
+            <div class="jm-header-actions">
+              <button class="jm-close" title="Dismiss">×</button>
+            </div>
+          </div>
         </div>
-        <div class="jm-body">${escapeHtml(message)}</div>
+        <div class="jm-body">
+          <div class="jm-error-box">
+            <span class="jm-error-icon">⚠</span>
+            <span>${escapeHtml(message)}</span>
+          </div>
+        </div>
       </div>`;
     root.querySelector(".jm-close")?.addEventListener("click", () => (root.style.display = "none"));
   }
@@ -92,83 +103,92 @@
 
     root.innerHTML = `
       <div class="jm-panel">
-        <div class="jm-header">
-          <div class="jm-header-text">
-            <span class="jm-title">JobMatch</span>
-            ${jobTitle ? `<div class="jm-scanned-title" title="${escapeHtml(jobTitle)}">${escapeHtml(jobTitle)}</div>` : ""}
-          </div>
-          <div class="jm-header-actions">
-            <button class="jm-refresh" title="Run a fresh analysis (ignore cached result)">⟳</button>
-            <button class="jm-close" title="Dismiss">×</button>
-          </div>
-        </div>
-        ${hasMultipleProfiles ? `
-          <div class="jm-profile-bar">
-            <span class="jm-profile-label">CV:</span>
-            <select class="jm-profile-select" title="Switch resume profile">
-              ${profiles.map((p) => `
-                <option value="${escapeHtml(p.id)}" ${p.id === activeProfileId ? "selected" : ""}>
-                  ${escapeHtml(p.name)}${!p.hasResume ? " (empty)" : ""}
-                </option>
-              `).join("")}
-            </select>
-          </div>
-        ` : (result.profileName && result.profileName !== "Primary Profile" ? `
-          <div class="jm-profile-bar">
-            <span class="jm-profile-tag">${escapeHtml(result.profileName)}</span>
-          </div>
-        ` : "")}
-        <div class="jm-score-row">
-          <div class="jm-score" style="color:${colorForPercent(pct)}">${pctLabel}</div>
-          <div class="jm-score-label">match${engineLabel ? ` · ${engineLabel}` : ""}</div>
-        </div>
-        ${result.fallbackNote ? `<div class="jm-fallback-note">ℹ️ ${escapeHtml(result.fallbackNote)}</div>` : ""}
-        ${result.note ? `<div class="jm-note">${escapeHtml(result.note)}</div>` : ""}
-        ${strengths.length ? `
-          <div class="jm-section jm-section--strengths">
-            <div class="jm-section-title jm-title--strengths">Key Strengths</div>
-            <ul class="jm-list jm-strengths">
-              ${strengths.map((s) => `
-                <li class="jm-item jm-strength-item">
-                  <span class="jm-strength-bullet">✓</span>
-                  <span class="jm-item-text" dir="auto">${escapeHtml(cleanSuggestionText(s))}</span>
-                </li>
-              `).join("")}
-            </ul>
-          </div>` : ""}
-        ${gaps.length ? `
-          <div class="jm-section jm-section--gaps">
-            <div class="jm-section-title jm-title--gaps">Gaps & Weaknesses</div>
-            <ul class="jm-list jm-gaps">
-              ${gaps.map((g) => `
-                <li class="jm-item jm-gap-item">
-                  <span class="jm-gap-bullet">!</span>
-                  <span class="jm-item-text" dir="auto">${escapeHtml(cleanSuggestionText(g))}</span>
-                </li>
-              `).join("")}
-            </ul>
-          </div>` : ""}
-        ${missing.length ? `
-          <div class="jm-section">
-            <div class="jm-section-title">Missing / not detected</div>
-            <div class="jm-tags">
-              ${missing.map((s) => `<span class="jm-tag jm-tag--missing">${escapeHtml(s)}</span>`).join("")}
+        <div class="jm-header-band">
+          <div class="jm-header">
+            <div class="jm-header-text">
+              <span class="jm-title">JobMatch</span>
+              ${jobTitle ? `<div class="jm-scanned-title" title="${escapeHtml(jobTitle)}">${escapeHtml(jobTitle)}</div>` : ""}
             </div>
-          </div>` : ""}
-        ${suggestions.length ? `
-          <div class="jm-section">
-            <div class="jm-section-title">How to Bridge the Gaps</div>
-            <ul class="jm-suggestions">
-              ${suggestions.map((s) => {
-                const cleaned = cleanSuggestionText(s);
-                return `
-                <li class="jm-suggestion-item">
-                  <span class="jm-suggestion-bullet">•</span>
-                  <span class="jm-suggestion-text" dir="auto">${escapeHtml(cleaned)}</span>
-                </li>`;
-              }).join("")}
-            </ul>
-          </div>` : ""}
+            <div class="jm-header-actions">
+              <button class="jm-refresh" title="Run a fresh analysis (ignore cached result)">⟳</button>
+              <button class="jm-close" title="Dismiss">×</button>
+            </div>
+          </div>
+          <div class="jm-score-row">
+            <div class="jm-score-ring" style="--jm-pct:${pct ?? 0}; --jm-ring-color:${colorForPercent(pct)}">
+              <div class="jm-score-inner" style="background:${colorForPercent(pct)}">${pctLabel}</div>
+            </div>
+            <div class="jm-score-meta">
+              <div class="jm-score-label">Match score</div>
+              ${engineLabel ? `<div class="jm-score-engine">${escapeHtml(engineLabel)}</div>` : ""}
+            </div>
+          </div>
+        </div>
+        <div class="jm-body">
+          ${hasMultipleProfiles ? `
+            <div class="jm-profile-bar">
+              <span class="jm-profile-label">CV:</span>
+              <select class="jm-profile-select" title="Switch resume profile">
+                ${profiles.map((p) => `
+                  <option value="${escapeHtml(p.id)}" ${p.id === activeProfileId ? "selected" : ""}>
+                    ${escapeHtml(p.name)}${!p.hasResume ? " (empty)" : ""}
+                  </option>
+                `).join("")}
+              </select>
+            </div>
+          ` : (result.profileName && result.profileName !== "Primary Profile" ? `
+            <div class="jm-profile-bar">
+              <span class="jm-profile-tag">${escapeHtml(result.profileName)}</span>
+            </div>
+          ` : "")}
+          ${result.fallbackNote ? `<div class="jm-fallback-note">ℹ️ ${escapeHtml(result.fallbackNote)}</div>` : ""}
+          ${result.note ? `<div class="jm-note">${escapeHtml(result.note)}</div>` : ""}
+          ${strengths.length ? `
+            <div class="jm-section jm-section--strengths">
+              <div class="jm-section-title jm-title--strengths">Key Strengths</div>
+              <ul class="jm-list jm-strengths">
+                ${strengths.map((s) => `
+                  <li class="jm-item jm-strength-item">
+                    <span class="jm-strength-bullet">✓</span>
+                    <span class="jm-item-text" dir="auto">${escapeHtml(cleanSuggestionText(s))}</span>
+                  </li>
+                `).join("")}
+              </ul>
+            </div>` : ""}
+          ${gaps.length ? `
+            <div class="jm-section jm-section--gaps">
+              <div class="jm-section-title jm-title--gaps">Gaps & Weaknesses</div>
+              <ul class="jm-list jm-gaps">
+                ${gaps.map((g) => `
+                  <li class="jm-item jm-gap-item">
+                    <span class="jm-gap-bullet">!</span>
+                    <span class="jm-item-text" dir="auto">${escapeHtml(cleanSuggestionText(g))}</span>
+                  </li>
+                `).join("")}
+              </ul>
+            </div>` : ""}
+          ${missing.length ? `
+            <div class="jm-section">
+              <div class="jm-section-title">Missing / not detected</div>
+              <div class="jm-tags">
+                ${missing.map((s) => `<span class="jm-tag jm-tag--missing">${escapeHtml(s)}</span>`).join("")}
+              </div>
+            </div>` : ""}
+          ${suggestions.length ? `
+            <div class="jm-section">
+              <div class="jm-section-title">How to Bridge the Gaps</div>
+              <ul class="jm-suggestions">
+                ${suggestions.map((s) => {
+                  const cleaned = cleanSuggestionText(s);
+                  return `
+                  <li class="jm-suggestion-item">
+                    <span class="jm-suggestion-bullet">•</span>
+                    <span class="jm-suggestion-text" dir="auto">${escapeHtml(cleaned)}</span>
+                  </li>`;
+                }).join("")}
+              </ul>
+            </div>` : ""}
+        </div>
       </div>`;
 
     root.querySelector(".jm-close")?.addEventListener("click", () => (root.style.display = "none"));

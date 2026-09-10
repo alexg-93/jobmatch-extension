@@ -21,3 +21,6 @@ yarn-error.log*
 
 # Builds & Archives
 *.zip
+
+# Brainstorming companion scratch files
+.superpowers/
