@@ -95,7 +95,6 @@ function populateSelectedProfile() {
 
   $("resumeText").value = curr.text || "";
   $("customSkills").value = (curr.customSkills || []).join(", ");
-  $("profileYearsInput").value = (curr.yearsOfExperience !== null && curr.yearsOfExperience !== undefined) ? curr.yearsOfExperience : "";
   if (curr.text) {
     $("resumeInfo").textContent =
       `Profile "${curr.name}": ${curr.text.length} chars, ${curr.skills?.length || 0} skills` +
@@ -557,13 +556,13 @@ $("deleteProfileBtn").addEventListener("click", async () => {
   }
 });
 
-$("resumeFile").addEventListener("change", async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  if (isProcessing) return;
+async function handleResumeFile(file) {
+  if (!file || isProcessing) return;
   isProcessing = true;
   setButtonsDisabled(true);
   setStatus("Reading file…");
+  const dropzoneText = $("resumeFileLabel");
+  if (dropzoneText) dropzoneText.textContent = file.name;
   try {
     let text;
     if (file.name.toLowerCase().endsWith(".pdf")) {
@@ -576,11 +575,42 @@ $("resumeFile").addEventListener("change", async (e) => {
     setStatus(`Loaded ${file.name} (${text.length} characters). Review below, then click Save.`);
   } catch (err) {
     setStatus("Couldn't read that file: " + err.message, true);
+    if (dropzoneText) dropzoneText.textContent = "Choose a file or drop it here";
   } finally {
     isProcessing = false;
     setButtonsDisabled(false);
   }
+}
+
+$("resumeFile").addEventListener("change", (e) => {
+  handleResumeFile(e.target.files[0]);
 });
+
+const dropzone = $("resumeDropzone");
+if (dropzone) {
+  ["dragenter", "dragover"].forEach((evt) => {
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropzone.classList.add("jm-dropzone--active");
+    });
+  });
+  ["dragleave", "dragend"].forEach((evt) => {
+    dropzone.addEventListener(evt, () => dropzone.classList.remove("jm-dropzone--active"));
+  });
+  dropzone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropzone.classList.remove("jm-dropzone--active");
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    try {
+      $("resumeFile").files = e.dataTransfer.files;
+    } catch (err) {
+      // Some browsers disallow programmatically setting input.files; the
+      // drag-drop still works since we process `file` directly below.
+    }
+    handleResumeFile(file);
+  });
+}
 
 $("saveBtn").addEventListener("click", async () => {
   if (isProcessing) return;
@@ -603,8 +633,6 @@ $("saveBtn").addEventListener("click", async () => {
 
   try {
     const customSkills = $("customSkills").value.split(",").map((s) => s.trim()).filter(Boolean);
-    const yearsVal = $("profileYearsInput").value.trim();
-    const yearsOfExperience = yearsVal ? parseFloat(yearsVal) : null;
     setStatus("Extracting skills for profile…");
     const skillResp = await sendMessage({ type: "EXTRACT_SKILLS", payload: { resumeText: text, customSkills } });
     const skills = skillResp?.skills || [];
@@ -617,7 +645,7 @@ $("saveBtn").addEventListener("click", async () => {
         text,
         skills,
         customSkills,
-        yearsOfExperience
+        yearsOfExperience: curr.yearsOfExperience
       }
     });
 
@@ -649,9 +677,9 @@ $("clearBtn").addEventListener("click", async () => {
     payload: { id: curr.id, name: curr.name, text: "", skills: [], customSkills: [], yearsOfExperience: null }
   });
   $("resumeFile").value = "";
+  if ($("resumeFileLabel")) $("resumeFileLabel").textContent = "Choose a file or drop it here";
   $("resumeText").value = "";
   $("customSkills").value = "";
-  $("profileYearsInput").value = "";
   setStatus(`Cleared resume text for profile "${curr.name}".`);
   loadExisting();
 });
