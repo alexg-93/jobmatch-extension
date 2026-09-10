@@ -684,4 +684,113 @@ $("clearBtn").addEventListener("click", async () => {
   loadExisting();
 });
 
+// --- Application tracker ---
+
+const STATUS_LABELS = { saved: "Saved", applied: "Applied", interviewing: "Interviewing", rejected: "Rejected" };
+let currentAppFilter = "all";
+let allApplications = [];
+
+function relativeTime(ts) {
+  if (!ts) return "";
+  const diffMs = Date.now() - ts;
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 5) return `${weeks}w ago`;
+  return new Date(ts).toLocaleDateString();
+}
+
+function renderApplicationStats() {
+  const counts = { saved: 0, applied: 0, interviewing: 0, rejected: 0 };
+  allApplications.forEach((a) => {
+    if (counts[a.status] !== undefined) counts[a.status] += 1;
+  });
+  $("statSaved").textContent = counts.saved;
+  $("statApplied").textContent = counts.applied;
+  $("statInterviewing").textContent = counts.interviewing;
+  $("statRejected").textContent = counts.rejected;
+}
+
+function renderApplicationsList() {
+  const list = $("applicationsList");
+  const empty = $("applicationsEmpty");
+  const filtered = currentAppFilter === "all"
+    ? allApplications
+    : allApplications.filter((a) => a.status === currentAppFilter);
+
+  if (!filtered.length) {
+    list.innerHTML = "";
+    empty.style.display = "block";
+    empty.textContent = allApplications.length
+      ? "No jobs with this status."
+      : 'No tracked jobs yet. Click "+ Track" on the results panel while browsing a job to save it here.';
+    return;
+  }
+  empty.style.display = "none";
+
+  list.innerHTML = filtered.map((a) => {
+    const pct = typeof a.matchPercent === "number" ? a.matchPercent : null;
+    const pctLabel = pct === null ? "—" : `${pct}%`;
+    const ringColor = pct === null ? "#cbd5e1" : pct >= 75 ? "#22c55e" : pct >= 45 ? "#f59e0b" : "#ef4444";
+    return `
+      <div class="jm-app-card" data-job-key="${escapeHtml(a.jobKey)}">
+        <div class="jm-app-ring" style="--jm-app-pct:${pct ?? 0};--jm-app-ring-color:${ringColor}">
+          <div class="jm-app-ring-inner" style="background:${ringColor}">${pctLabel}</div>
+        </div>
+        <div class="jm-app-info">
+          <div class="jm-app-title">${escapeHtml(a.title || "Untitled job")}</div>
+          <div class="jm-app-meta">${escapeHtml(relativeTime(a.updatedAt))}${a.profileName ? ` · ${escapeHtml(a.profileName)}` : ""}</div>
+        </div>
+        <select class="jm-app-status-select" data-job-key="${escapeHtml(a.jobKey)}">
+          ${Object.entries(STATUS_LABELS).map(([val, label]) => `<option value="${val}" ${val === a.status ? "selected" : ""}>${label}</option>`).join("")}
+        </select>
+        ${a.jobUrl ? `<a class="jm-app-open" href="${escapeHtml(a.jobUrl)}" target="_blank" rel="noopener" title="Open job posting">↗</a>` : ""}
+        <button type="button" class="jm-app-remove" data-job-key="${escapeHtml(a.jobKey)}" title="Remove from tracker">×</button>
+      </div>`;
+  }).join("");
+
+  list.querySelectorAll(".jm-app-status-select").forEach((sel) => {
+    sel.addEventListener("change", async (e) => {
+      const res = await sendMessage({ type: "UPDATE_APPLICATION_STATUS", payload: { jobKey: sel.dataset.jobKey, status: e.target.value } });
+      if (res?.ok) loadApplications();
+    });
+  });
+  list.querySelectorAll(".jm-app-remove").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      await sendMessage({ type: "REMOVE_APPLICATION", payload: { jobKey: btn.dataset.jobKey } });
+      loadApplications();
+    });
+  });
+}
+
+async function loadApplications() {
+  const res = await sendMessage({ type: "LIST_APPLICATIONS", payload: {} });
+  allApplications = res?.ok ? (res.applications || []) : [];
+  renderApplicationStats();
+  renderApplicationsList();
+}
+
+document.querySelectorAll("#appFilterTabs .jm-app-filter").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    currentAppFilter = btn.dataset.status;
+    document.querySelectorAll("#appFilterTabs .jm-app-filter").forEach((b) => b.classList.toggle("active", b === btn));
+    renderApplicationsList();
+  });
+});
+
+document.querySelectorAll("#topTabs .jm-top-tab").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const view = btn.dataset.view;
+    document.querySelectorAll("#topTabs .jm-top-tab").forEach((b) => b.classList.toggle("active", b === btn));
+    $("setupView").style.display = view === "setup" ? "flex" : "none";
+    $("applicationsView").style.display = view === "applications" ? "flex" : "none";
+    if (view === "applications") loadApplications();
+  });
+});
+
 loadExisting();

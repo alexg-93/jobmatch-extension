@@ -69,7 +69,15 @@
     root.querySelector(".jm-close")?.addEventListener("click", () => (root.style.display = "none"));
   }
 
-  function renderResult(result, onProfileSwitch, onRefresh) {
+  const STATUS_LABELS = {
+    saved: "Saved",
+    applied: "Applied",
+    interviewing: "Interviewing",
+    rejected: "Rejected"
+  };
+  const STATUS_ORDER = ["saved", "applied", "interviewing", "rejected"];
+
+  function renderResult(result, onProfileSwitch, onRefresh, onTrack, onStatusChange) {
     const root = ensureRoot();
     root.style.display = "block";
     const pct = result.matchPercent;
@@ -110,10 +118,25 @@
               ${jobTitle ? `<div class="jm-scanned-title" title="${escapeHtml(jobTitle)}">${escapeHtml(jobTitle)}</div>` : ""}
             </div>
             <div class="jm-header-actions">
+              ${result.tracking ? `
+                <button class="jm-status-pill" title="Change application status">${escapeHtml(STATUS_LABELS[result.tracking.status] || result.tracking.status)} <span class="jm-status-caret">▾</span></button>
+              ` : `
+                <button class="jm-track-btn" title="Track this application">+ Track</button>
+              `}
               <button class="jm-refresh" title="Run a fresh analysis (ignore cached result)">⟳</button>
               <button class="jm-close" title="Dismiss">×</button>
             </div>
           </div>
+          ${result.tracking ? `
+            <div class="jm-status-menu">
+              ${STATUS_ORDER.map((s) => `
+                <button class="jm-status-menu-item${s === result.tracking.status ? " jm-status-menu-item--active" : ""}" data-status="${s}">
+                  ${STATUS_LABELS[s]}
+                  ${s === result.tracking.status ? '<span class="jm-status-check">✓</span>' : ""}
+                </button>
+              `).join("")}
+            </div>
+          ` : ""}
           <div class="jm-score-row">
             <div class="jm-score-ring" style="--jm-pct:${pct ?? 0}; --jm-ring-color:${colorForPercent(pct)}">
               <div class="jm-score-inner" style="background:${colorForPercent(pct)}">${pctLabel}</div>
@@ -200,6 +223,23 @@
     if (hasMultipleProfiles && typeof onProfileSwitch === "function") {
       root.querySelector(".jm-profile-select")?.addEventListener("change", (e) => {
         onProfileSwitch(e.target.value);
+      });
+    }
+
+    if (typeof onTrack === "function") {
+      root.querySelector(".jm-track-btn")?.addEventListener("click", () => onTrack());
+    }
+
+    if (typeof onStatusChange === "function") {
+      const menu = root.querySelector(".jm-status-menu");
+      root.querySelector(".jm-status-pill")?.addEventListener("click", () => {
+        menu?.classList.toggle("jm-status-menu--open");
+      });
+      root.querySelectorAll(".jm-status-menu-item").forEach((item) => {
+        item.addEventListener("click", () => {
+          menu?.classList.remove("jm-status-menu--open");
+          onStatusChange(item.dataset.status);
+        });
       });
     }
   }

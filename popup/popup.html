@@ -9,9 +9,13 @@
   <div class="jm-topbar">
     <h1>JobMatch</h1>
     <p class="subtitle">Upload your resume once. Scores jobs on LinkedIn, Drushim, AllJobs, Comeet &amp; Greenhouse with on-device AI.</p>
+    <div class="jm-top-tabs" id="topTabs">
+      <button type="button" class="jm-top-tab active" data-view="setup">Setup</button>
+      <button type="button" class="jm-top-tab" data-view="applications">Applications</button>
+    </div>
   </div>
 
-  <div class="jm-content">
+  <div class="jm-content" id="setupView">
 
     <div class="jm-card ai-engine-section">
       <div class="ai-engine-header">
@@ -148,6 +152,28 @@
     </div>
 
     <p class="footer">DOCX isn't supported yet — export to PDF or paste the text. Your resume stays on this device; nothing is uploaded anywhere.</p>
+
+  </div>
+
+  <div class="jm-content" id="applicationsView" style="display:none;">
+
+    <div class="jm-stats-grid" id="appStats">
+      <div class="jm-stat-card"><div class="jm-stat-value" id="statSaved">0</div><div class="jm-stat-label">Saved</div></div>
+      <div class="jm-stat-card"><div class="jm-stat-value" id="statApplied">0</div><div class="jm-stat-label">Applied</div></div>
+      <div class="jm-stat-card"><div class="jm-stat-value" id="statInterviewing">0</div><div class="jm-stat-label">Interview</div></div>
+      <div class="jm-stat-card"><div class="jm-stat-value" id="statRejected">0</div><div class="jm-stat-label">Rejected</div></div>
+    </div>
+
+    <div class="jm-app-filters" id="appFilterTabs">
+      <button type="button" class="jm-app-filter active" data-status="all">All</button>
+      <button type="button" class="jm-app-filter" data-status="saved">Saved</button>
+      <button type="button" class="jm-app-filter" data-status="applied">Applied</button>
+      <button type="button" class="jm-app-filter" data-status="interviewing">Interviewing</button>
+      <button type="button" class="jm-app-filter" data-status="rejected">Rejected</button>
+    </div>
+
+    <div id="applicationsList"></div>
+    <p class="jm-app-empty" id="applicationsEmpty" style="display:none;">No tracked jobs yet. Click "+ Track" on the results panel while browsing a job to save it here.</p>
 
   </div>
 

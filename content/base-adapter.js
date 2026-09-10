@@ -53,6 +53,58 @@
       }
     }
 
+    // Renders a result with the profile-switch/refresh/track/status-change
+    // callbacks wired in. Track and status-change just patch `result.tracking`
+    // and re-render in place — no need to re-run the whole analysis for a
+    // storage-only change.
+    function renderTrackableResult(result, job, key, profileId) {
+      window.JobMatchWidget.renderResult(
+        result,
+        (newProfileId) => {
+          analyze(job, key, newProfileId);
+        },
+        () => {
+          // Re-extract in case the page content changed since the last scan.
+          analyze(extractJob(), key, profileId, true);
+        },
+        () => {
+          if (!chrome.runtime?.id) return;
+          chrome.runtime.sendMessage(
+            {
+              type: "TRACK_JOB",
+              payload: {
+                jobKey: key,
+                title: job.title,
+                jobUrl: location.href,
+                matchPercent: result.matchPercent,
+                profileId: result.profileId,
+                profileName: result.profileName,
+                engine: result.engine
+              }
+            },
+            (res) => {
+              if (!chrome.runtime?.id || chrome.runtime.lastError || !res?.ok) return;
+              if (currentJobKey !== key) return;
+              result.tracking = { status: res.application.status };
+              renderTrackableResult(result, job, key, profileId);
+            }
+          );
+        },
+        (newStatus) => {
+          if (!chrome.runtime?.id) return;
+          chrome.runtime.sendMessage(
+            { type: "UPDATE_APPLICATION_STATUS", payload: { jobKey: key, status: newStatus } },
+            (res) => {
+              if (!chrome.runtime?.id || chrome.runtime.lastError || !res?.ok) return;
+              if (currentJobKey !== key) return;
+              result.tracking = { status: res.application.status };
+              renderTrackableResult(result, job, key, profileId);
+            }
+          );
+        }
+      );
+    }
+
     // SPA route/content changes (a new job selected, a description finishing
     // its async render) show up as DOM mutations, so react to those directly
     // instead of polling every 1.5s regardless of whether anything changed.
@@ -102,16 +154,7 @@
             }
 
             analyzedJobKey = key;
-            window.JobMatchWidget.renderResult(
-              result,
-              (newProfileId) => {
-                analyze(job, key, newProfileId);
-              },
-              () => {
-                // Re-extract in case the page content changed since the last scan.
-                analyze(extractJob(), key, profileId, true);
-              }
-            );
+            renderTrackableResult(result, job, key, profileId);
           }
         );
       } catch (err) {

@@ -561,6 +561,72 @@ async function setCachedResult(url, profileId, result) {
   await addToCacheIndex(profileId, key);
 }
 
+// Application tracker: a single global map of jobKey -> tracked application,
+// independent of the per-profile cache above (applying to a job isn't
+// profile-specific, even though the match score shown at tracking time was).
+const APPLICATIONS_KEY = "applications";
+const APPLICATION_STATUSES = ["saved", "applied", "interviewing", "rejected"];
+
+async function getApplications() {
+  const { [APPLICATIONS_KEY]: apps } = await chrome.storage.local.get(APPLICATIONS_KEY);
+  return apps && typeof apps === "object" ? apps : {};
+}
+
+async function getApplicationTracking(jobKey) {
+  const apps = await getApplications();
+  const entry = apps[jobKey];
+  return entry ? { status: entry.status } : null;
+}
+
+async function trackJob({ jobKey, title, jobUrl, matchPercent, profileId, profileName, engine }) {
+  if (!jobKey) throw new Error("Missing jobKey");
+  const apps = await getApplications();
+  const now = Date.now();
+  const existing = apps[jobKey];
+  apps[jobKey] = {
+    jobKey,
+    title: title || existing?.title || "",
+    jobUrl: jobUrl || existing?.jobUrl || "",
+    status: existing?.status || "saved",
+    matchPercent: typeof matchPercent === "number" ? matchPercent : (existing?.matchPercent ?? null),
+    profileId: profileId || existing?.profileId || null,
+    profileName: profileName || existing?.profileName || "",
+    engine: engine || existing?.engine || "",
+    createdAt: existing?.createdAt || now,
+    updatedAt: now
+  };
+  await chrome.storage.local.set({ [APPLICATIONS_KEY]: apps });
+  return apps[jobKey];
+}
+
+async function updateApplicationStatus(jobKey, status) {
+  if (!APPLICATION_STATUSES.includes(status)) {
+    throw new Error(`Invalid status: ${status}`);
+  }
+  const apps = await getApplications();
+  if (!apps[jobKey]) throw new Error("Job is not tracked");
+  apps[jobKey].status = status;
+  apps[jobKey].updatedAt = Date.now();
+  await chrome.storage.local.set({ [APPLICATIONS_KEY]: apps });
+  return apps[jobKey];
+}
+
+async function removeApplication(jobKey) {
+  const apps = await getApplications();
+  delete apps[jobKey];
+  await chrome.storage.local.set({ [APPLICATIONS_KEY]: apps });
+}
+
+async function listApplications(statusFilter) {
+  const apps = await getApplications();
+  let entries = Object.values(apps);
+  if (statusFilter && statusFilter !== "all") {
+    entries = entries.filter((e) => e.status === statusFilter);
+  }
+  entries.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  return entries;
+}
+
 async function analyzeJob({ url, title, description, profileId, forceRefresh }) {
   const { profiles, activeProfileId } = await ensureProfilesMigrated();
   const targetProfileId = profileId || activeProfileId;
@@ -578,7 +644,8 @@ async function analyzeJob({ url, title, description, profileId, forceRefresh }) 
       ...cached,
       profiles: profilesSummary,
       activeProfileId: targetProfileId,
-      profileName: targetProfile?.name || "Profile"
+      profileName: targetProfile?.name || "Profile",
+      tracking: await getApplicationTracking(url)
     };
   }
 
@@ -811,6 +878,7 @@ async function analyzeJob({ url, title, description, profileId, forceRefresh }) 
   }
 
   await setCachedResult(url, targetProfileId, result);
+  result.tracking = await getApplicationTracking(url);
   return result;
 }
 
@@ -941,6 +1009,42 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         try {
           const res = await testAiConnection(msg.payload || {});
           sendResponse(res);
+        } catch (err) {
+          sendResponse({ ok: false, error: err?.message || String(err) });
+        }
+        return;
+      }
+      case "TRACK_JOB": {
+        try {
+          const entry = await trackJob(msg.payload || {});
+          sendResponse({ ok: true, application: entry });
+        } catch (err) {
+          sendResponse({ ok: false, error: err?.message || String(err) });
+        }
+        return;
+      }
+      case "UPDATE_APPLICATION_STATUS": {
+        try {
+          const entry = await updateApplicationStatus(msg.payload?.jobKey, msg.payload?.status);
+          sendResponse({ ok: true, application: entry });
+        } catch (err) {
+          sendResponse({ ok: false, error: err?.message || String(err) });
+        }
+        return;
+      }
+      case "REMOVE_APPLICATION": {
+        try {
+          await removeApplication(msg.payload?.jobKey);
+          sendResponse({ ok: true });
+        } catch (err) {
+          sendResponse({ ok: false, error: err?.message || String(err) });
+        }
+        return;
+      }
+      case "LIST_APPLICATIONS": {
+        try {
+          const applications = await listApplications(msg.payload?.status);
+          sendResponse({ ok: true, applications });
         } catch (err) {
           sendResponse({ ok: false, error: err?.message || String(err) });
         }

@@ -153,6 +153,82 @@
 
 #jobmatch-widget-root .jm-refresh:active { transform: rotate(-45deg); }
 
+/* --- Application tracking --- */
+
+#jobmatch-widget-root .jm-track-btn {
+  display: flex;
+  align-items: center;
+  border: none;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 10px;
+  height: 30px;
+  border-radius: 9px;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+#jobmatch-widget-root .jm-track-btn:hover { background: rgba(255, 255, 255, 0.28); }
+
+#jobmatch-widget-root .jm-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  background: #ffffff;
+  color: #4338ca;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 10px;
+  height: 30px;
+  border-radius: 9px;
+  white-space: nowrap;
+}
+
+#jobmatch-widget-root .jm-status-caret { font-size: 9px; }
+
+#jobmatch-widget-root .jm-status-menu {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 4px;
+  margin-top: 8px;
+}
+
+#jobmatch-widget-root .jm-status-menu--open { display: flex; }
+
+#jobmatch-widget-root .jm-status-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  padding: 7px 9px;
+  border-radius: 7px;
+}
+
+#jobmatch-widget-root .jm-status-menu-item:hover { background: rgba(255, 255, 255, 0.14); }
+
+#jobmatch-widget-root .jm-status-menu-item--active {
+  background: rgba(255, 255, 255, 0.9);
+  color: #4338ca;
+}
+
+#jobmatch-widget-root .jm-status-check { font-size: 11px; }
+
 /* --- Score ring --- */
 
 #jobmatch-widget-root .jm-score-row {
