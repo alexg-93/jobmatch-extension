@@ -66,6 +66,17 @@ describe("keywordMatch", () => {
     assert.deepEqual(result.missingSkills, []);
   });
 
+  test("matches concatenated 'TailwindCSS' in the resume against 'Tailwind CSS' in the job", () => {
+    const result = JobMatch.keywordMatch(
+      "Skills: React, TailwindCSS, TypeScript",
+      "Requirements: React and Tailwind CSS experience required.",
+      [],
+      null
+    );
+    assert.ok(result.matchedSkills.includes("Tailwind CSS"));
+    assert.ok(!result.missingSkills.includes("Tailwind CSS"));
+  });
+
   test("respects custom skills supplied by the user's profile", () => {
     const result = JobMatch.keywordMatch(
       "I have shipped several projects using Splunk dashboards.",
