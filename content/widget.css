@@ -21,7 +21,7 @@
 }
 
 #jobmatch-widget-root .jm-panel {
-  width: 300px;
+  width: 360px;
   max-height: 82vh;
   overflow-y: auto;
   background: #ffffff;
@@ -99,7 +99,8 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  max-width: 210px;
+  max-width: 160px;
+  min-width: 0;
 }
 
 #jobmatch-widget-root .jm-title {
@@ -116,7 +117,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 210px;
+  max-width: 100%;
   line-height: 1.3;
 }
 
