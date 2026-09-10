@@ -74,7 +74,7 @@ function extractJob() {
 
 function jobKeyFromUrl() {
   const url = location.href;
-  let m = url.match(/\/jobs\/view\/(?:[^\/?#]+-)?(\d+)/i);
+  let m = url.match(/\/jobs\/view\/(?:[^/?#]+-)?(\d+)/i);
   if (m) return "linkedin:" + m[1];
   m = url.match(/currentJobId=(\d+)/i);
   if (m) return "linkedin:" + m[1];

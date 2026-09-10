@@ -179,8 +179,8 @@
 
   function cleanSuggestionText(text) {
     let s = (text || "").trim();
-    while (/^(\d+[\.\)]|[•\*\-–—])\s*/.test(s)) {
-      s = s.replace(/^(\d+[\.\)]|[•\*\-–—])\s*/, "").trim();
+    while (/^(\d+[.)]|[•*\-–—])\s*/.test(s)) {
+      s = s.replace(/^(\d+[.)]|[•*\-–—])\s*/, "").trim();
     }
     return s;
   }

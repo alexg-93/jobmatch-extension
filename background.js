@@ -603,7 +603,7 @@ async function analyzeJob({ url, title, description, profileId }) {
 
   const aiSettings = await getAiSettings();
   let aiRawResult = null;
-  let activeEngineName = "ai";
+  let activeEngineName;
   let primaryError = null;
   let fallbackNote = null;
 

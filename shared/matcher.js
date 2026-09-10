@@ -222,31 +222,31 @@
   function isProgrammingGoInText(text) {
     if (!text) return false;
     if (/\b(?:golang|go\s*(?:lang|language|developer|engineer|backend|microservices))\b/i.test(text)) return true;
-    if (/(?:python|java|c\+\+|c#|rust|ruby|node|typescript|javascript)\s*[\/,]\s*go\b/i.test(text)) return true;
-    if (/\bgo\s*[\/,]\s*(?:python|java|c\+\+|c#|rust|ruby|node|typescript|javascript)(?:$|[^a-zA-Z0-9+#])/i.test(text)) return true;
+    if (/(?:python|java|c\+\+|c#|rust|ruby|node|typescript|javascript)\s*[/,]\s*go\b/i.test(text)) return true;
+    if (/\bgo\s*[/,]\s*(?:python|java|c\+\+|c#|rust|ruby|node|typescript|javascript)(?:$|[^a-zA-Z0-9+#])/i.test(text)) return true;
     return false;
   }
 
   function isProgrammingCInText(text) {
     if (!text) return false;
     if (/\b(?:c\s*language|c\s*programming|embedded\s*c)\b/i.test(text)) return true;
-    if (/\bc\s*[\/,]\s*(?:c\+\+|c#|assembly|rust|python)(?:$|[^a-zA-Z0-9+#])/i.test(text)) return true;
-    if (/(?:c\+\+|assembly|rust)\s*[\/,]\s*c\b/i.test(text)) return true;
+    if (/\bc\s*[/,]\s*(?:c\+\+|c#|assembly|rust|python)(?:$|[^a-zA-Z0-9+#])/i.test(text)) return true;
+    if (/(?:c\+\+|assembly|rust)\s*[/,]\s*c\b/i.test(text)) return true;
     return false;
   }
 
   function isProgrammingRInText(text) {
     if (!text) return false;
     if (/\b(?:r\s*language|r\s*programming|r\s*studio|r-project)\b/i.test(text)) return true;
-    if (/(?:python|sql|matlab|sas|spss)\s*[\/,]\s*r\b/i.test(text)) return true;
-    if (/\br\s*[\/,]\s*(?:python|sql|matlab|sas|spss)(?:$|[^a-zA-Z0-9+#])/i.test(text)) return true;
+    if (/(?:python|sql|matlab|sas|spss)\s*[/,]\s*r\b/i.test(text)) return true;
+    if (/\br\s*[/,]\s*(?:python|sql|matlab|sas|spss)(?:$|[^a-zA-Z0-9+#])/i.test(text)) return true;
     return false;
   }
 
   function isExcelSoftwareInText(text) {
     if (!text) return false;
     if (/\b(?:ms\s*excel|microsoft\s*excel|excel\s*(?:spreadsheets?|formulas?|vba|macros?|pivot|advanced))\b/i.test(text)) return true;
-    if (/\b(?:we|to|strive\s+to|will|you\'ll|you\s+will|ability\s+to|must)\s+excel\b/i.test(text)) return false;
+    if (/\b(?:we|to|strive\s+to|will|you'll|you\s+will|ability\s+to|must)\s+excel\b/i.test(text)) return false;
     if (/\bexcel\s+(?:at|in|beyond)\b/i.test(text)) return false;
     if (/\bexcel\b/i.test(text)) return true;
     return false;
@@ -500,8 +500,8 @@
       if (!itemText) continue;
 
       // Clean leading bullet or number markers
-      while (/^(\d+[\.\)]|[•\*\-–—])\s*/.test(itemText)) {
-        itemText = itemText.replace(/^(\d+[\.\)]|[•\*\-–—])\s*/, "").trim();
+      while (/^(\d+[.)]|[•*\-–—])\s*/.test(itemText)) {
+        itemText = itemText.replace(/^(\d+[.)]|[•*\-–—])\s*/, "").trim();
       }
 
       let isDiscarded = false;
