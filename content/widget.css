@@ -1,7 +1,7 @@
 #jobmatch-widget-root {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  top: 24px;
+  right: 24px;
   z-index: 999999;
   --jm-grad-1: #6366f1;
   --jm-grad-2: #8b5cf6;
