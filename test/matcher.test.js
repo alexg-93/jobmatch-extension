@@ -305,7 +305,8 @@ describe("buildMatchPrompt", () => {
   test("accepts positional arguments and includes job/resume content", () => {
     const prompt = JobMatch.buildMatchPrompt("My resume text", "Backend Engineer", "Job description text", ["Python"], null);
     assert.match(prompt, /JOB TITLE: Backend Engineer/);
-    assert.match(prompt, /RESUME:\nMy resume text/);
+    assert.match(prompt, /<<<RESUME_START>>>\nMy resume text\n<<<RESUME_END>>>/);
+    assert.match(prompt, /<<<JOB_POSTING_START>>>\nJob description text\n<<<JOB_POSTING_END>>>/);
     assert.match(prompt, /matchPercent/);
   });
 
@@ -317,6 +318,39 @@ describe("buildMatchPrompt", () => {
       detectedJobSkills: ["Python"]
     });
     assert.match(prompt, /JOB TITLE: Backend Engineer/);
+  });
+
+  test("warns the model to treat delimited job/resume content as data, not instructions", () => {
+    const prompt = JobMatch.buildMatchPrompt("My resume text", "Backend Engineer", "Job description text", [], null);
+    assert.match(prompt, /UNTRUSTED CONTENT WARNING/);
+    assert.match(prompt, /DATA ONLY/);
+  });
+});
+
+describe("buildSkillExtractionPrompt", () => {
+  test("delimits the resume and warns against following instructions found inside it", () => {
+    const prompt = JobMatch.buildSkillExtractionPrompt("My resume text");
+    assert.match(prompt, /<<<RESUME_START>>>\nMy resume text\n<<<RESUME_END>>>/);
+    assert.match(prompt, /DATA ONLY/);
+  });
+});
+
+describe("reconcileMatchPercent", () => {
+  test("leaves the AI score untouched when it's within range of the deterministic baseline", () => {
+    assert.equal(JobMatch.reconcileMatchPercent(70, 60), 70);
+  });
+
+  test("pulls an implausibly high AI score back toward the baseline", () => {
+    // e.g. a prompt-injected job posting trying to force matchPercent: 100
+    assert.equal(JobMatch.reconcileMatchPercent(100, 10), 45);
+  });
+
+  test("pulls an implausibly low AI score back toward the baseline", () => {
+    assert.equal(JobMatch.reconcileMatchPercent(0, 90), 55);
+  });
+
+  test("passes through unchanged when no deterministic baseline is available", () => {
+    assert.equal(JobMatch.reconcileMatchPercent(80, null), 80);
   });
 });
 

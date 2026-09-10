@@ -727,6 +727,18 @@ async function analyzeJob({ url, title, description, profileId, forceRefresh }) 
   // an out-of-range score or a non-array field into the UI or the grounding logic.
   if (aiRawResult) {
     aiRawResult = self.JobMatch.normalizeAiMatchResult(aiRawResult);
+
+    // matchPercent isn't grounded against the job text the way missingSkills/
+    // strengths/gaps/suggestions are, so pull it back toward the deterministic
+    // keyword-match baseline if it swings implausibly far from it (e.g. a
+    // prompt-injected job posting trying to force an extreme score).
+    const reconciled = self.JobMatch.reconcileMatchPercent(aiRawResult.matchPercent, detMatch.matchPercent);
+    if (reconciled !== aiRawResult.matchPercent) {
+      console.warn(
+        `[JobMatch Background] AI matchPercent (${aiRawResult.matchPercent}) deviated too far from keyword baseline (${detMatch.matchPercent}); reconciled to ${reconciled}.`
+      );
+      aiRawResult.matchPercent = reconciled;
+    }
   }
 
   let result = null;
