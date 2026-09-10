@@ -63,7 +63,7 @@
       debounceTimer = setTimeout(tick, 250);
     }
 
-    function analyze(job, key, profileId = null) {
+    function analyze(job, key, profileId = null, forceRefresh = false) {
       if (!chrome.runtime?.id) {
         stopPolling();
         window.JobMatchWidget?.renderError?.("Extension updated. Please refresh the page.");
@@ -75,7 +75,7 @@
 
       try {
         chrome.runtime.sendMessage(
-          { type: "ANALYZE_JOB", payload: { url: key, title: job.title, description: job.description, profileId } },
+          { type: "ANALYZE_JOB", payload: { url: key, title: job.title, description: job.description, profileId, forceRefresh } },
           (result) => {
             isAnalyzing = false;
             if (!chrome.runtime?.id || chrome.runtime.lastError) {
@@ -102,9 +102,16 @@
             }
 
             analyzedJobKey = key;
-            window.JobMatchWidget.renderResult(result, (newProfileId) => {
-              analyze(job, key, newProfileId);
-            });
+            window.JobMatchWidget.renderResult(
+              result,
+              (newProfileId) => {
+                analyze(job, key, newProfileId);
+              },
+              () => {
+                // Re-extract in case the page content changed since the last scan.
+                analyze(extractJob(), key, profileId, true);
+              }
+            );
           }
         );
       } catch (err) {

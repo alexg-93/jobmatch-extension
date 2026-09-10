@@ -561,7 +561,7 @@ async function setCachedResult(url, profileId, result) {
   await addToCacheIndex(profileId, key);
 }
 
-async function analyzeJob({ url, title, description, profileId }) {
+async function analyzeJob({ url, title, description, profileId, forceRefresh }) {
   const { profiles, activeProfileId } = await ensureProfilesMigrated();
   const targetProfileId = profileId || activeProfileId;
   const targetProfile = profiles.find((p) => p.id === targetProfileId) || profiles[0];
@@ -572,7 +572,7 @@ async function analyzeJob({ url, title, description, profileId }) {
     hasResume: Boolean(p.text && p.text.trim())
   }));
 
-  const cached = await getCachedResult(url, targetProfileId);
+  const cached = forceRefresh ? null : await getCachedResult(url, targetProfileId);
   if (cached) {
     return {
       ...cached,

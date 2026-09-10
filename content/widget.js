@@ -58,7 +58,7 @@
     root.querySelector(".jm-close")?.addEventListener("click", () => (root.style.display = "none"));
   }
 
-  function renderResult(result, onProfileSwitch) {
+  function renderResult(result, onProfileSwitch, onRefresh) {
     const root = ensureRoot();
     root.style.display = "block";
     const pct = result.matchPercent;
@@ -97,7 +97,10 @@
             <span class="jm-title">JobMatch</span>
             ${jobTitle ? `<div class="jm-scanned-title" title="${escapeHtml(jobTitle)}">${escapeHtml(jobTitle)}</div>` : ""}
           </div>
-          <button class="jm-close" title="Dismiss">×</button>
+          <div class="jm-header-actions">
+            <button class="jm-refresh" title="Run a fresh analysis (ignore cached result)">⟳</button>
+            <button class="jm-close" title="Dismiss">×</button>
+          </div>
         </div>
         ${hasMultipleProfiles ? `
           <div class="jm-profile-bar">
@@ -169,6 +172,10 @@
       </div>`;
 
     root.querySelector(".jm-close")?.addEventListener("click", () => (root.style.display = "none"));
+
+    if (typeof onRefresh === "function") {
+      root.querySelector(".jm-refresh")?.addEventListener("click", () => onRefresh());
+    }
 
     if (hasMultipleProfiles && typeof onProfileSwitch === "function") {
       root.querySelector(".jm-profile-select")?.addEventListener("change", (e) => {
